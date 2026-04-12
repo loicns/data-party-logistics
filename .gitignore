@@ -1,0 +1,60 @@
+# ---- secrets ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- AWS ----
+.aws/
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# ---- Python ----
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ---- data ----
+data/
+*.parquet
+*.csv
+*.ndjson
+*.zip
+*.gz
+!tests/fixtures/*.csv
+!docs/**/*.csv
+
+# ---- dbt ----
+dbt_packages/
+target/
+logs/
+profiles.yml
+
+# ---- notebooks ----
+.ipynb_checkpoints/
+
+# ---- docs build output ----
+site/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.swp
+*.swo
