@@ -1,1 +1,2 @@
 FAKE_API_KEY="sk-ant-api03-M3sLlfahdGQRmWnHjk6W3NTgPqnZIgnPVrBnlRf0d9l5QeY4FwBCjIvWog98xrgSWrDFPksbYLJXshM4yRwTV3"
+KEY="sk-ant-api03-M3sLlfahdGQRmWnHjk6W3NTgPqnZIgnPVrBnlRf0d9l5QeY4FwBCjIvWog98xrgSWrDFPksbYLJXshM4yRwTV3"
