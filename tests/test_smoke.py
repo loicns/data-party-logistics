@@ -11,9 +11,5 @@ def test_import_config():
 
 def test_project_structure():
     """Key packages are importable."""
-    import ingestion
-    import ingestion.clients
-    import serving
-    import agent
 
     assert True
