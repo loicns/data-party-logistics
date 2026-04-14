@@ -304,6 +304,11 @@ dev = [
     { name = "ruff" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "mkdocs-material" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.35" },
@@ -322,6 +327,9 @@ requires-dist = [
     { name = "websockets", specifier = ">=14.0" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "mkdocs-material", specifier = ">=9.7.6" }]
 
 [[package]]
 name = "distlib"
