@@ -1,0 +1,65 @@
+site_name: Data Party Logistics
+site_url: https://loicns.github.io/data-party-logistics
+site_description: "Global port congestion & vessel ETA platform"
+repo_url: https://github.com/loicns/data-party-logistics
+repo_name: loicns/data-party-logistics
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Problem Framing: 01-problem-framing.md
+      - Data Sources: 02-data-sources.md
+  - Learning Journal:
+      - learning-journal/index.md
+  - Blog:
+      - blog/index.md
+  - Backlog:
+      - decisions/backlog.md
