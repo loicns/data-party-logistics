@@ -58,7 +58,8 @@ nav:
       - Problem Framing: 01-problem-framing.md
       - Data Sources: 02-data-sources.md
   - Learning Journal:
-      - learning-journal/index.md
+      - Overview: learning-journal/index.md
+      - "Week 1, S05 — Terraform & Git Hygiene": learning-journal/week-01-s05.md
   - Blog:
       - blog/index.md
   - Backlog:
