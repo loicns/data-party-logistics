@@ -93,3 +93,63 @@ def load_port_bboxes(csv_path: str | Path) -> list[list[list[float]]]:
             )
 
     return bboxes
+
+
+def load_port_centers(csv_path: str | Path) -> dict[str, tuple[float, float]]:
+    """Load all maritime ports from UN LOCODE and return their center coordinates.
+
+    Returns a dict mapping UN LOCODE (e.g., 'NLRTM') to
+    (latitude, longitude) center point.
+    """
+    path = Path(csv_path)
+    centers: dict[str, tuple[float, float]] = {}
+
+    with path.open(encoding="utf-8-sig") as f:
+        fieldnames = [
+            "Chg",
+            "Country",
+            "Location",
+            "Name",
+            "NameWoDiacritics",
+            "SubDiv",
+            "Function",
+            "Status",
+            "Date",
+            "IATA",
+            "Coordinates",
+            "Remarks",
+        ]
+        reader = csv.DictReader(f, fieldnames=fieldnames)
+        for row in reader:
+            if "1" not in (row.get("Function") or ""):
+                continue
+            coords = row.get("Coordinates", "").strip()
+            if not coords:
+                continue
+            country = (row.get("Country") or "").strip()
+            loc = (row.get("Location") or "").strip()
+            if not country or not loc:
+                continue
+            locode = f"{country}{loc}"
+
+            try:
+                parts = coords.split()
+                if len(parts) != 2:
+                    continue
+                lat_str, lon_str = parts
+
+                lat_deg, lat_min = float(lat_str[:2]), float(lat_str[2:4])
+                lat = lat_deg + lat_min / 60.0
+                if lat_str[-1].upper() == "S":
+                    lat = -lat
+
+                lon_deg, lon_min = float(lon_str[:3]), float(lon_str[3:5])
+                lon = lon_deg + lon_min / 60.0
+                if lon_str[-1].upper() == "W":
+                    lon = -lon
+
+                centers[locode] = (round(lat, 4), round(lon, 4))
+            except (ValueError, IndexError):
+                continue
+
+    return centers
