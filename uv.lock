@@ -288,6 +288,7 @@ dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "python-dotenv" },
     { name = "structlog" },
     { name = "websockets" },
 ]
@@ -307,6 +308,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "mkdocs-material" },
+    { name = "moto", extra = ["s3"] },
 ]
 
 [package.metadata]
@@ -321,6 +323,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "responses", marker = "extra == 'dev'", specifier = ">=0.25" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.9" },
     { name = "structlog", specifier = ">=24.4" },
@@ -329,7 +332,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "mkdocs-material", specifier = ">=9.7.6" }]
+dev = [
+    { name = "mkdocs-material", specifier = ">=9.7.6" },
+    { name = "moto", extras = ["s3"], specifier = ">=5.1.22" },
+]
 
 [[package]]
 name = "distlib"
