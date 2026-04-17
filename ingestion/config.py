@@ -23,6 +23,8 @@ class Settings:
     aisstream_api_key: str = os.getenv("AISSTREAM_API_KEY", "")
     fred_api_key: str = os.getenv("FRED_API_KEY", "")
     noaa_api_token: str = os.getenv("NOAA_API_TOKEN", "")
+    cmems_username: str = os.getenv("CMEMS_USERNAME", "")
+    cmems_password: str = os.getenv("CMEMS_PASSWORD", "")
 
     def validate(self) -> None:
         """Raise if critical settings are missing."""
