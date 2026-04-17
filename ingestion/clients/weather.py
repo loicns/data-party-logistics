@@ -160,7 +160,7 @@ class OpenMeteoClient:
         Returns a list of MarineWeatherHourly records (one per hour x forecast_days).
         For forecast_days=7: 7 x 24 = 168 records per port call.
         """
-        params = {
+        params: dict[str, str | int | float] = {
             "latitude": lat,
             "longitude": lon,
             "hourly": ",".join(
