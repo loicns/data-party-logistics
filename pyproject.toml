@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Global Port Congestion & Vessel ETA Intelligence Platform"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     "httpx>=0.28",
     "websockets>=14.0",
@@ -39,7 +39,7 @@ build-backend = "hatchling.build"
 packages = ["ingestion", "warehouse", "features", "models", "serving", "agent", "dashboard", "orchestration"]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"
 line-length = 88
 src = ["ingestion", "warehouse", "features", "models", "serving", "agent", "dashboard", "orchestration"]
 
@@ -47,7 +47,7 @@ src = ["ingestion", "warehouse", "features", "models", "serving", "agent", "dash
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
