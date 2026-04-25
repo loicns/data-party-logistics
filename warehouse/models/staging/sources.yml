@@ -1,0 +1,50 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: "Raw data loaded from S3 NDJSON files by orchestration/flows/dbt_flow.py"
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    tables:
+      - name: raw_ais_positions
+        description: "AIS vessel position reports from AISStream.io WebSocket consumer"
+        # Source: ingestion/clients/ais_stream.py → S3 → loaded by dbt_flow.py
+        columns:
+          - name: mmsi
+            description: "Maritime Mobile Service Identity — unique vessel ID"
+            tests:
+              - not_null   # dbt test: SELECT fails if any mmsi is NULL
+          - name: timestamp
+            description: "AIS broadcast timestamp"
+            tests:
+              - not_null
+
+      - name: raw_comtrade_flows
+        description: "UN Comtrade monthly trade flow records"
+        # Source: ingestion/clients/comtrade.py → S3 → loaded by dbt_flow.py
+        freshness:
+          warn_after: {count: 35, period: day}  # Monthly data — only warn after 35 days
+
+      - name: raw_weather_observations
+        description: "Hourly marine weather from Open-Meteo API"
+        # Source: ingestion/clients/weather.py → S3 → loaded by dbt_flow.py
+        columns:
+          - name: port_code
+            tests:
+              - not_null
+
+      - name: raw_gdelt_events
+        description: "Filtered GDELT news events related to shipping/supply chain"
+        # Source: ingestion/clients/gdelt.py → S3 → loaded by dbt_flow.py
+
+      - name: raw_fred_indicators
+        description: "FRED economic time series (GSCPI, oil price, dollar index)"
+        # Source: ingestion/clients/fred.py → S3 → loaded by dbt_flow.py
+        columns:
+          - name: series_id
+            description: "FRED series identifier (e.g., GSCPI, DCOILWTICO)"
+            tests:
+              - not_null
