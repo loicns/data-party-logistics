@@ -19,12 +19,21 @@ class Settings:
     aws_profile: str = os.getenv("AWS_PROFILE", "dpl")
     s3_bucket_raw: str = os.getenv("S3_BUCKET_RAW", "")
 
+    # Postgres
+    postgres_host: str = os.getenv("POSTGRES_HOST", "localhost")
+    postgres_port: int = int(os.getenv("POSTGRES_PORT", 5432))
+    postgres_db: str = os.getenv("POSTGRES_DB", "dpl_dev")
+    postgres_user: str = os.getenv("POSTGRES_USER", "postgres")
+    postgres_password: str = os.getenv("POSTGRES_PASSWORD", "")
+
     # API keys
     aisstream_api_key: str = os.getenv("AISSTREAM_API_KEY", "")
     fred_api_key: str = os.getenv("FRED_API_KEY", "")
     noaa_api_token: str = os.getenv("NOAA_API_TOKEN", "")
     cmems_username: str = os.getenv("CMEMS_USERNAME", "")
     cmems_password: str = os.getenv("CMEMS_PASSWORD", "")
+    maersk_api_key: str = os.getenv("MAERSK_API_KEY", "")
+    cmacgm_api_key: str = os.getenv("CMACGM_API_KEY", "")
 
     def validate(self) -> None:
         """Raise if critical settings are missing."""

@@ -1,0 +1,43 @@
+name: "dpl_warehouse"
+version: "1.0.0"
+config-version: 2
+
+profile: "dpl_warehouse"
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# ─── Materialization strategy ─────────────────────────────────────────────────
+# It determines HOW dbt writes each layer to Postgres.
+models:
+  dpl_warehouse:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts
+
+# WHY VIEWS FOR STAGING?
+# Staging models are thin — they just clean and rename raw data.
+# A view runs on-demand: when you query it, it executes the SQL live.
+# Zero storage cost. Always reflects the latest raw data.
+# Downside: if you query it 1,000 times/day, it re-runs 1,000 times.
+# But since features read from marts (not staging), that's fine.
+
+# WHY TABLES FOR MARTS?
+# Mart models are complex — aggregations, window functions, spatial joins.
+# These are expensive to compute. Materializing them means:
+# - dbt computes them ONCE during `dbt run`
+# - Feature code reads the pre-computed result (fast)
+# - The FastAPI /predict endpoint reads from marts in <50ms
+# Downside: they're "stale" until the next dbt run (acceptable for hourly pipelines).
+
+# ─── Seed configuration ───────────────────────────────────────────────────────
+seeds:
+  dpl_warehouse:
+    +schema: seeds            # wpi_ports.csv → seeds.wpi_ports table

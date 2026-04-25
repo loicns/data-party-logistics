@@ -8,11 +8,8 @@ Usage:
 
 from ingestion.clients.carriers.base import (
     CarrierAdapter,  # Abstract base class — all adapters implement this
-    CarrierAPIError,  # Exception type for adapter-level errors
     NullAdapter,  # Placeholder adapter for carriers with no integration yet
-    VesselETA,  # Pydantic model returned by get_vessel_eta()
 )
-from ingestion.clients.carriers.cma_cgm import CMACGMAdapter
 from ingestion.clients.carriers.maersk import MaerskAdapter
 from ingestion.clients.carriers.msc_scraper import MSCScrapingAdapter
 from ingestion.config import settings  # Singleton settings object — reads from .env
@@ -32,7 +29,7 @@ def get_all_adapters() -> dict[str, CarrierAdapter]:
     This is the Open/Closed Principle: open for extension, closed for modification.
     """
     return {
-        "maersk": MaerskAdapter(api_key=settings.maersk_api_key),
+        "maersk": MaerskAdapter(settings),
         # Maersk: official API, highest confidence, highest rate limit
         "cma-cgm": NullAdapter("cma-cgm", reason="business_account_required"),
         # CMA CGM: official API, high confidence
