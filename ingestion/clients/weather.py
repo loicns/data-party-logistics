@@ -11,7 +11,6 @@ from pydantic import BaseModel  # Data validation
 from tenacity import retry, stop_after_attempt, wait_exponential  # Retry decorator
 
 from ingestion.config import Settings  # Centralised config
-from ingestion.port_loader import load_port_centers  # Reuse AIS client's port loader
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +25,8 @@ def load_port_coordinates() -> dict[str, tuple[float, float]]:
     Returns dict mapping port_code → (lat, lon).
     Falls back to FALLBACK_PORT_COORDINATES if port_loader fails.
     """
-    try:
-        return load_port_centers("warehouse/seeds/un_locode.csv")
-    except Exception:
-        logger.warning(
-            "port_loader failed — falling back to FALLBACK_PORT_COORDINATES",
-            exc_info=True,
-        )
-        return dict(FALLBACK_PORT_COORDINATES)
+    # Temporarily hardcoded to use the 10 fallback ports for quick testing
+    return dict(FALLBACK_PORT_COORDINATES)
 
 
 # ─── Fallback port coordinate registry (for tests / offline use) ─────────────
@@ -315,3 +308,11 @@ class WeatherIngestionClient:
         """
         records = self.open_meteo.fetch_all_ports(forecast_days)
         return self.write_to_s3(records)
+
+
+if __name__ == "__main__":
+    from ingestion.config import settings
+
+    logging.basicConfig(level=logging.INFO)
+    client = WeatherIngestionClient(settings)
+    client.run()

@@ -28,8 +28,15 @@ repos:
         additional_dependencies:
           - pydantic>=2.10
           - pydantic-settings>=2.7
-        args: [--ignore-missing-imports]
-        # pass_filenames: false
+        args:
+          [
+            --ignore-missing-imports,
+            --no-incremental,
+            ingestion/,
+            serving/,
+            agent/,
+          ]
+        pass_filenames: false
 
   # --- Secret scanning (gitleaks) ---
   - repo: https://github.com/gitleaks/gitleaks

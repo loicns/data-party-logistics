@@ -3,12 +3,12 @@
 We do NOT write integration tests that actually launch Chromium and hit MSC's website.
 Integration tests that depend on a third-party website's availability and structure
 are not reliable in CI. The website could be down, MSC could have changed their HTML,
-or the test could take 30+ seconds per run. Instead, test the logic with mocked Playwright.
+or the test could take 30+ seconds. Instead, test the logic with mocked Playwright.
 
 WHAT WE TEST:
     - _parse_msc_date() correctly parses all expected date formats
     - _parse_msc_date() returns None for unrecognised formats (doesn't raise)
-    - MSCScrapingAdapter.get_vessel_eta() returns None when PlaywrightTimeoutError is raised
+    - MSCScrapingAdapter.get_vessel_eta() returns None on timeout
     - MSCScrapingAdapter.get_service_schedule() always returns an empty list
 """
 
@@ -59,7 +59,7 @@ def test_parse_msc_date_empty_string_returns_none():
 
 @pytest.mark.asyncio
 async def test_get_service_schedule_always_empty():
-    """Service schedule always returns empty list — scraping not supported for MSC schedules."""
+    """Service schedule returns empty list — scraping not supported."""
     adapter = MSCScrapingAdapter()
     result = await adapter.get_service_schedule("AE-1")
     assert result == []
@@ -84,15 +84,17 @@ async def test_get_vessel_eta_returns_none_on_selector_timeout(
     - mock_playwright_ctx: replace async_playwright() with a controlled mock
       that raises PlaywrightTimeoutError when wait_for_selector is called
     """
-    from playwright.async_api import TimeoutError as PTE
+    from playwright.async_api import TimeoutError
 
     # Build the mock chain: async_playwright().__aenter__().chromium.launch() → browser
     mock_page = AsyncMock()
     mock_page.goto = AsyncMock()
     mock_page.set_extra_http_headers = AsyncMock()
-    mock_page.wait_for_selector = AsyncMock(side_effect=PTE("selector timeout"))
-    # side_effect=PTE(...) means wait_for_selector() raises PlaywrightTimeoutError
-    # This is exactly what happens when MSC's HTML changes and the selector disappears.
+    mock_page.wait_for_selector = AsyncMock(
+        side_effect=TimeoutError("selector timeout")
+    )
+    # side_effect=TimeoutError(...) means wait_for_selector() raises TimeoutError
+    # This is exactly what happens when MSC's HTML changes and selector disappears.
 
     mock_browser = AsyncMock()
     mock_browser.new_page = AsyncMock(return_value=mock_page)
@@ -122,7 +124,7 @@ async def test_get_vessel_eta_returns_none_on_selector_timeout(
 async def test_get_vessel_eta_returns_vessel_eta_on_success(
     mock_sleep, mock_playwright_ctx
 ):
-    """Returns VesselETA with confidence=SCRAPED when page loads and selector is found."""
+    """Returns SCRAPED confidence VesselETA when page loads and selector found."""
     from ingestion.clients.carriers.base import Confidence
 
     mock_page = AsyncMock()

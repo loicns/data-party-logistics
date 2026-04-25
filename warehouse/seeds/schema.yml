@@ -1,0 +1,28 @@
+version: 2
+
+seeds:
+  - name: wpi_ports
+    description: "World Port Index — static port reference data from NGA"
+    config:
+      column_types:
+        port_code: varchar(5)
+        port_name: varchar(100)
+        country: varchar(100)
+        country_code: varchar(2)
+        latitude: float
+        longitude: float
+        un_locode: varchar(5)
+        max_depth_m: float
+        harbor_type: varchar(50)
+    columns:
+      - name: port_code
+        description: "UN/LOCODE port identifier (e.g., NLRTM for Rotterdam)"
+        tests:
+          - unique
+          - not_null
+      - name: latitude
+        tests:
+          - not_null
+      - name: longitude
+        tests:
+          - not_null

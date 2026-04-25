@@ -75,7 +75,8 @@ class MSCScrapingAdapter(CarrierAdapter):
             REQUEST_DELAY_SEC
         )  # Be respectful — always wait before loading
         # This sleep applies even on first call. The delay is per-call, not per-session.
-        # If you're calling this in a loop over 50 vessels, total time = 50 × 3s = 2.5 minutes.
+        # If you're calling this in a loop over 50 vessels, total time =
+        # 50 x 3s = 2.5 minutes.
         # That's intentional — don't optimize this away.
 
         async with async_playwright() as p:
@@ -90,8 +91,8 @@ class MSCScrapingAdapter(CarrierAdapter):
                 {
                     # Identify our bot — ethical scraping practice.
                     # Lets MSC understand their traffic and contact us if needed.
-                    # A scraper hiding as a real browser (Chrome/Safari UA) is deceptive.
-                    # A named bot UA is honest about what it is.
+                    # A scraper hiding as a real browser (Chrome/Safari UA) implies
+                    # deception. A named bot UA is honest about what it is.
                     "User-Agent": (
                         "DPL-Research-Bot/1.0 "
                         "(vessel-intelligence; +https://github.com/you/dpl)"
@@ -107,17 +108,17 @@ class MSCScrapingAdapter(CarrierAdapter):
                 # MSC can be slow — a 10s timeout would produce false timeouts.
 
                 # Wait for the ETA element to appear — JS renders it asynchronously.
-                # This is the key difference from requests: we're waiting for JS to finish
-                # making its XHR call and injecting the ETA into the DOM.
+                # This is the key difference from requests: we're waiting for JS
+                # to finish making its XHR call and injecting the ETA into the DOM.
                 await page.wait_for_selector(ETA_SELECTOR, timeout=SELECTOR_TIMEOUT_MS)
                 eta_text = await page.inner_text(ETA_SELECTOR)
                 # inner_text() returns the visible text content of the element.
-                # e.g., "18 Apr 2026" or "18/04/2026" depending on MSC's locale settings.
+                # e.g., "18 Apr 2026" or "18/04/2026" inside MSC locale settings.
 
                 eta_dt = _parse_msc_date(eta_text)
                 if eta_dt is None:
-                    # The element was found, but the date text is in an unrecognised format.
-                    # Log the raw text so you know what format to add to _parse_msc_date().
+                    # The element was found, but the date text format is unrecognised.
+                    # Log the raw text so you know what format to add.
                     logger.warning("msc_eta_parse_failed", imo=imo, raw_text=eta_text)
                     return None
 
@@ -126,11 +127,9 @@ class MSCScrapingAdapter(CarrierAdapter):
                     imo=imo,
                     carrier="msc",
                     eta=eta_dt,
-                    confidence=Confidence.SCRAPED,  # Hardcoded — this is ALWAYS scraped.
-                    fetched_at=datetime.now(
-                        UTC
-                    ),  # UTC timestamp of when we fetched this.
-                    # confidence=Confidence.SCRAPED propagates to every downstream consumer:
+                    confidence=Confidence.SCRAPED,  # Hardcoded — ALWAYS scraped.
+                    fetched_at=datetime.now(UTC),  # UTC timestamp of fetch time.
+                    # confidence=Confidence.SCRAPED propagates to downstream consumers:
                     # - features/reliability.py weights it lower in delay predictions
                     # - dashboard shows a "scraped" badge instead of "live API"
                     # - data quality reports flag it as lower-trust
@@ -138,9 +137,9 @@ class MSCScrapingAdapter(CarrierAdapter):
 
             except PlaywrightTimeoutError:
                 # Two causes:
-                # 1. MSC updated their frontend — ETA_SELECTOR no longer exists in the DOM.
+                # 1. MSC updated frontend — ETA_SELECTOR no longer exists in the DOM.
                 #    Fix: inspect the page, update ETA_SELECTOR.
-                # 2. The vessel IMO is not in MSC's system — the tracking page shows "not found"
+                # 2. Vessel IMO not in MSC system — tracking page shows "not found"
                 #    and the ETA element never appears.
                 # We can't distinguish these without more logic — return None for both.
                 logger.warning(
@@ -152,16 +151,17 @@ class MSCScrapingAdapter(CarrierAdapter):
                 return None
 
             except Exception:
-                # Catch-all: network errors, bot detection redirects, unexpected page structure.
-                # logger.exception() logs the full traceback automatically — you'll see it in logs.
-                # We return None rather than raising so one bad vessel doesn't abort a batch run.
+                # Catch-all: network errors, bot redirects, unexpected page structure.
+                # logger.exception logs the full traceback automatically.
+                # We return None rather than raising so one bad vessel doesn't
+                # abort a batch run.
                 logger.exception("msc_scrape_error", imo=imo)
                 return None
 
             finally:
                 await browser.close()  # Always close — prevents browser process leak.
-                # Without this, each call leaves a Chromium process running in the background.
-                # On a server that processes 500 vessels/day, that's 500 zombie processes.
+                # Without this, each call leaves a Chromium process in the background.
+                # On a server that processes 500 vessels/day, that's 500 zombies.
                 # `finally` ensures close() runs even if an exception was raised above.
 
     async def get_service_schedule(self, service_id: str) -> list[dict]:
@@ -183,8 +183,8 @@ def _parse_msc_date(raw: str) -> datetime | None:
         "18 Apr 2026"  →  strptime format "%d %b %Y"
         "18/04/2026"   →  strptime format "%d/%m/%Y"
 
-    This function is fragile by design — update it when MSC changes their date format.
-    If this returns None unexpectedly, check the raw_text in the msc_eta_parse_failed log.
+    This function is fragile by design — update it when MSC changes format.
+    If this returns None unexpectedly, check the raw_text in the log.
 
     Returns None (not raises) so callers can handle gracefully.
     """
