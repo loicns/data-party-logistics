@@ -36,6 +36,8 @@ data/
 *.gz
 !tests/fixtures/*.csv
 !docs/**/*.csv
+!warehouse/seeds/*.csv
+!warehouse/seeds/**/*.csv
 
 # ---- dbt ----
 dbt_packages/

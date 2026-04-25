@@ -1,0 +1,11 @@
+port_code,port_name,country,country_code,latitude,longitude,un_locode,max_depth_m,harbor_type
+NLRTM,Rotterdam,Netherlands,NL,51.9225,4.4792,NLRTM,24.0,Coastal Natural
+CNSHA,Shanghai,China,CN,31.2304,121.4737,CNSHA,16.0,River Natural
+SGSIN,Singapore,Singapore,SG,1.2644,103.8198,SGSIN,18.0,Coastal Natural
+USLAX,Los Angeles,United States,US,33.7405,-118.2728,USLAX,16.0,Coastal Breakwater
+DEHAM,Hamburg,Germany,DE,53.5511,9.9937,DEHAM,15.0,River Natural
+BEANR,Antwerp,Belgium,BE,51.2277,4.4003,BEANR,17.0,River Natural
+GBFXT,Felixstowe,United Kingdom,GB,51.9615,1.3507,GBFXT,15.0,Coastal Breakwater
+JPTYO,Tokyo,Japan,JP,35.6528,139.7744,JPTYO,12.0,Coastal Breakwater
+KRPUS,Busan,South Korea,KR,35.1028,129.0403,KRPUS,16.0,Coastal Natural
+AEJEA,Jebel Ali,UAE,AE,25.0136,55.0589,AEJEA,17.0,Coastal Breakwater
