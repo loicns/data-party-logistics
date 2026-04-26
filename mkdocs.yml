@@ -35,10 +35,18 @@ theme:
 plugins:
   - search
 
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+  - javascripts/mermaid.js
+
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
@@ -57,6 +65,9 @@ nav:
   - Architecture:
       - Problem Framing: 01-problem-framing.md
       - Data Sources: 02-data-sources.md
+      - EC2 Ingestion Runbook: 03-ec2-ingestion-runbook.md
+      - EC2 Ingestion Explained: 04-ec2-ingestion-implementation-explained.md
+      - Ingestion Architecture Options: 05-ingestion-architecture-options.md
   - Learning Journal:
       - Overview: learning-journal/index.md
   - Blog:
