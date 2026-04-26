@@ -310,9 +310,18 @@ class WeatherIngestionClient:
         return self.write_to_s3(records)
 
 
-if __name__ == "__main__":
-    from ingestion.config import settings
-
-    logging.basicConfig(level=logging.INFO)
+def main() -> None:
+    """Run weather ingestion once and exit."""
+    settings = Settings()
+    settings.validate()
+    logger.info(
+        "weather_ingestion_starting ports=%d",
+        len(load_port_coordinates()),
+    )
     client = WeatherIngestionClient(settings)
-    client.run()
+    key = client.run()
+    logger.info("weather_ingestion_done s3_key=%s", key)
+
+
+if __name__ == "__main__":
+    main()
