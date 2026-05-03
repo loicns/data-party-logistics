@@ -45,6 +45,28 @@ cd /Users/loicns/Projects/data-party-logistics
 bash infra/provision_server.sh
 ```
 
+If the script prints:
+
+```text
+Permission denied
+```
+
+while writing `~/.ssh/dpl-ingestion-key.pem`, the usual cause is that the key file already exists locally with restrictive permissions such as `0400`. The updated script now handles that case by reusing the existing key instead of trying to overwrite it.
+
+Behavior to expect now:
+
+- if `~/.ssh/dpl-ingestion-key.pem` already exists and the AWS key pair `dpl-ingestion-key` also exists, the script reuses both
+- if the local PEM exists but the AWS key pair does not, the script stops and tells you to recreate the pair
+- if the AWS key pair exists but the local PEM is missing, the script stops because AWS cannot return the private key again after creation
+
+If you are in the third case, clean up the AWS key pair and rerun:
+
+```bash
+aws ec2 delete-key-pair --key-name dpl-ingestion-key --profile dpl --region eu-west-3
+rm -f ~/.ssh/dpl-ingestion-key.pem
+bash infra/provision_server.sh
+```
+
 Then connect with the command printed by the script:
 
 ```bash
@@ -53,7 +75,7 @@ ssh -i ~/.ssh/dpl-ingestion-key.pem ubuntu@<YOUR_PUBLIC_IP>
 
 ## 2. Bootstrap The Runtime On EC2
 
-This repo currently declares `requires-python = ">=3.14"` in `pyproject.toml`, so do not rely on the default Ubuntu Python alone.
+This repo currently targets Python `3.12`, so do not rely on the default Ubuntu Python alone.
 
 Run this on the EC2 instance:
 
@@ -67,8 +89,8 @@ source "$HOME/.local/bin/env"
 git clone https://github.com/<your-username>/data-party-logistics.git
 cd /home/ubuntu/data-party-logistics
 
-uv python install 3.14
-uv sync --python 3.14
+uv python install 3.12
+uv sync --python 3.12
 cp .env.example .env
 ```
 
