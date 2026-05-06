@@ -217,7 +217,9 @@ class RecordBuffer:
 # ---------------------------------------------------------------------------
 
 
-async def consume(shutdown_event: asyncio.Event) -> None:
+async def consume(
+    shutdown_event: asyncio.Event, max_duration_seconds: int = 300
+) -> None:
     """Connect to AISStream and consume messages until shutdown.
 
     ASYNC ARCHITECTURE:
@@ -259,8 +261,16 @@ async def consume(shutdown_event: asyncio.Event) -> None:
             await asyncio.sleep(FLUSH_INTERVAL_SEC)  # Yield for 60 seconds
             buffer.flush()  # Then flush what's accumulated
 
+    async def watchdog_timer() -> None:
+        """Gracefully shuts down the stream after max duration."""
+        if max_duration_seconds > 0:
+            await asyncio.sleep(max_duration_seconds)
+            logger.info("batch_duration_reached", duration_seconds=max_duration_seconds)
+            shutdown_event.set()
+
     # Create the flush task — runs concurrently with the WebSocket loop below
     flush_task = asyncio.create_task(periodic_flush())
+    watchdog_task = asyncio.create_task(watchdog_timer())
 
     try:
         async for ws in websockets.connect(WS_URL, ping_interval=20, ping_timeout=10):
@@ -304,6 +314,7 @@ async def consume(shutdown_event: asyncio.Event) -> None:
         pass
     finally:
         flush_task.cancel()
+        watchdog_task.cancel()
         flushed = buffer.flush()
         logger.info("final_flush", records_flushed=flushed)
 

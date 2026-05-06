@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import math
 import time
-from datetime import datetime
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -60,6 +62,7 @@ ROUTE_WAYPOINTS: dict[str, tuple[float, float]] = {
 # Cache waypoint data to prevent redundant API calls during hourly runs.
 # Forecasts update 12-hourly; a 6-hour TTL is sufficient.
 CACHE_TTL_SECONDS = 6 * 3600
+FETCH_TIMEOUT_SECONDS = 180  # 3 min max per waypoint; prevents indefinite hangs
 
 # ---------------------------------------------------------------------------
 # Pydantic model
@@ -96,6 +99,66 @@ class OceanCurrentRecord(BaseModel):
         """
         deg = math.degrees(math.atan2(self.current_u_ms, self.current_v_ms))
         return round((deg + 360) % 360, 1)  # Normalise negative angles to [0, 360)
+
+
+# ---------------------------------------------------------------------------
+# Isolated Fetch Function (Top-Level for ProcessPoolExecutor)
+# ---------------------------------------------------------------------------
+
+
+def _fetch_and_parse_isolated(
+    dataset_id: str,
+    username: str,
+    password: str,
+    lat: float,
+    lon: float,
+    bbox_half_deg: float,
+) -> list[dict[str, Any]]:
+    """Runs in a separate process to guarantee we can timeout and kill it.
+    Returns a list of dicts to avoid pickling complex objects across process boundaries.
+    """
+    import copernicusmarine
+
+    now = datetime.now(UTC)
+    ds = copernicusmarine.open_dataset(
+        dataset_id=dataset_id,
+        username=username,
+        password=password,
+        minimum_latitude=lat - bbox_half_deg,
+        maximum_latitude=lat + bbox_half_deg,
+        minimum_longitude=lon - bbox_half_deg,
+        maximum_longitude=lon + bbox_half_deg,
+        variables=["uo", "vo"],
+        start_datetime=now.strftime("%Y-%m-%dT%H:%M:%S"),
+        end_datetime=(now + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%S"),
+    )
+
+    ds_surface = ds.isel(depth=0) if "depth" in ds.dims else ds
+    ds_mean = ds_surface.mean(dim=["latitude", "longitude"]).compute()
+
+    records = []
+    for t in ds_mean.time.values:
+        step = ds_mean.sel(time=t)
+        uo = float(step["uo"].item()) if "uo" in step else 0.0
+        vo = float(step["vo"].item()) if "vo" in step else 0.0
+        vhm0 = float(step["VHM0"].item()) if "VHM0" in step else None
+        ts_str = str(t.astype("datetime64[s]"))
+
+        try:
+            record = OceanCurrentRecord(
+                waypoint_lat=lat,
+                waypoint_lon=lon,
+                timestamp=ts_str,
+                current_u_ms=uo,
+                current_v_ms=vo,
+                wave_height_m=vhm0,
+            )
+            # Dump to dict immediately for safe cross-process pickling
+            records.append(record.model_dump())
+        except Exception:
+            continue
+
+    return records
 
 
 # ---------------------------------------------------------------------------
@@ -165,28 +228,45 @@ class CMEMSClient:
 
         logger.info("cmems_fetch_start", waypoint=waypoint_key, lat=lat, lon=lon)
 
-        # copernicusmarine.open_dataset() downloads a subset of the global CMEMS dataset
-        # as an xarray.Dataset. We specify:
-        #   - minimum|maximum latitude|longitude: bounding box limits
-        #   - variables: only fetch required fields to save bandwidth
-        import copernicusmarine  # Lazy import — only needed when this method is called
-
         try:
-            ds = copernicusmarine.open_dataset(
-                dataset_id=self.DATASET_ID,
-                username=settings.cmems_username,
-                password=settings.cmems_password,
-                minimum_latitude=lat - self.BBOX_HALF_DEG,
-                maximum_latitude=lat + self.BBOX_HALF_DEG,
-                minimum_longitude=lon - self.BBOX_HALF_DEG,
-                maximum_longitude=lon + self.BBOX_HALF_DEG,
-                variables=["uo", "vo"],
+            # We use a ProcessPoolExecutor. Why? Prefect runs flows in
+            # async loops/threads. Mixing ThreadPoolExecutor with Prefect's
+            # async loops and copernicusmarine's
+            # internal asyncio loops causes catastrophic deadlocks (hanging forever).
+            # A completely separate process guarantees true isolation and hard timeouts.
+            pool = ProcessPoolExecutor(max_workers=1)
+            future = pool.submit(
+                _fetch_and_parse_isolated,
+                self.DATASET_ID,
+                settings.cmems_username,
+                settings.cmems_password,
+                lat,
+                lon,
+                self.BBOX_HALF_DEG,
             )
+
+            try:
+                # Wait up to 3 minutes for the process to finish
+                record_dicts = future.result(timeout=FETCH_TIMEOUT_SECONDS)
+                # Terminate the process pool cleanly
+                pool.shutdown(wait=True)
+            except FuturesTimeoutError:
+                # If it times out, we FORCE KILL the process. This is the only way
+                # to guarantee it stops hanging.
+                pool.shutdown(wait=False, cancel_futures=True)
+                logger.error(
+                    "cmems_fetch_timeout",
+                    waypoint=waypoint_key,
+                    timeout_s=FETCH_TIMEOUT_SECONDS,
+                )
+                return []
+
+            # Reconstruct Pydantic models from the dicts returned by the process
+            records = [OceanCurrentRecord(**d) for d in record_dicts]
+
         except Exception:
             logger.exception("cmems_fetch_failed", waypoint=waypoint_key)
             return []  # Return empty — partial data is better than crashing the run
-
-        records = self._dataset_to_records(ds, lat, lon)
 
         # Store in cache with expiry
         expiry = time.time() + CACHE_TTL_SECONDS
@@ -197,58 +277,6 @@ class CMEMSClient:
             records=len(records),
             cache_expires_in_h=CACHE_TTL_SECONDS / 3600,
         )
-        return records
-
-    def _dataset_to_records(
-        self,
-        ds: Any,  # xarray.Dataset — typed as Any to avoid import dependency
-        waypoint_lat: float,
-        waypoint_lon: float,
-    ) -> list[OceanCurrentRecord]:
-        """Convert an xarray Dataset subset into a list of OceanCurrentRecord objects.
-
-        Strategy: spatial average over the bounding box, then one record per time step.
-
-        Averages bounding box (e.g., 12x12 grid) for a representative waypoint value,
-        reducing dataset size. Spatial variance is low here vs temporal variance.
-        """
-        records: list[OceanCurrentRecord] = []
-
-        # spatial average leaves 1D series; compute evaluates dask array into memory
-        ds_mean = ds.mean(dim=["latitude", "longitude"]).compute()
-
-        for t in ds_mean.time.values:
-            # ds_mean.sel(time=t) selects one time step from the averaged dataset
-            step = ds_mean.sel(time=t)
-
-            # Convert 0-dim DataArray to float; default 0.0 if missing
-            uo = float(step["uo"].item()) if "uo" in step else 0.0
-            vo = float(step["vo"].item()) if "vo" in step else 0.0
-            vhm0 = float(step["VHM0"].item()) if "VHM0" in step else None
-
-            # Ensure JSON-serializable ISO 8601 string
-            ts_dt = datetime.utcfromtimestamp(
-                (t - 0) / 1e9  # numpy datetime64 in nanoseconds → seconds
-                if hasattr(t, "__float__")
-                else t.astype("datetime64[s]").astype(float)
-            )
-            ts_str = ts_dt.strftime("%Y-%m-%dT%H:%M:%S")
-
-            try:
-                record = OceanCurrentRecord(
-                    waypoint_lat=waypoint_lat,
-                    waypoint_lon=waypoint_lon,
-                    timestamp=ts_str,
-                    current_u_ms=uo,
-                    current_v_ms=vo,
-                    wave_height_m=vhm0,
-                )
-                records.append(record)
-            except Exception:
-                # One bad time step doesn't abort the whole waypoint
-                logger.exception("cmems_record_validation_error", timestamp=ts_str)
-                continue
-
         return records
 
     def fetch_all_waypoints(self) -> list[OceanCurrentRecord]:

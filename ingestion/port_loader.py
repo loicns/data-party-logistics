@@ -18,7 +18,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-APPROACH_NM = 50.0  # nautical miles radius around each port
+APPROACH_NM = 200.0  # nautical miles radius around each port
 NM_TO_DEG = 1 / 60  # 1 nautical mile ≈ 1/60 degree latitude
 
 
