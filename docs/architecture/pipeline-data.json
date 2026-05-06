@@ -1,0 +1,434 @@
+{
+  "meta": {
+    "project": "Data Party Logistics",
+    "subtitle": "Port Operations Intelligence System",
+    "repo": "https://github.com/loicns/data-party-logistics",
+    "updated": "2026-05-04"
+  },
+  "layers": [
+    { "id": "external",       "label": "External Data Sources",  "color": "#64748b", "order": 0 },
+    { "id": "ingestion",      "label": "Ingestion Layer",        "color": "#3b82f6", "order": 1 },
+    { "id": "storage",        "label": "Raw Storage",            "color": "#6366f1", "order": 2 },
+    { "id": "orchestration",  "label": "Orchestration",          "color": "#8b5cf6", "order": 3 },
+    { "id": "transformation", "label": "Transformation (dbt)",   "color": "#10b981", "order": 4 },
+    { "id": "features",       "label": "Feature Store (Feast)",  "color": "#14b8a6", "order": 5 },
+    { "id": "ml",             "label": "Machine Learning",       "color": "#f59e0b", "order": 6 },
+    { "id": "serving",        "label": "Serving & API",          "color": "#ef4444", "order": 7 },
+    { "id": "frontend",       "label": "Dashboard (Frontend)",   "color": "#ec4899", "order": 8 }
+  ],
+  "nodes": [
+    {
+      "id": "aisstream",
+      "label": "AISStream WebSocket",
+      "layer": "external",
+      "status": "active",
+      "description": "Real-time AIS vessel position data via WebSocket. Free tier provides global coverage. We connect for 5-minute hourly snapshots within 200nm bounding boxes around our target ports.",
+      "source": null,
+      "github": "https://www.aisstream.io/"
+    },
+    {
+      "id": "noaa_api",
+      "label": "NOAA Marine API",
+      "layer": "external",
+      "status": "active",
+      "description": "National Oceanic and Atmospheric Administration. Provides marine weather observations: wave height, wind speed, swell period, and storm alerts. Free, no API key required.",
+      "source": null,
+      "github": "https://www.weather.gov/documentation/services-web-api"
+    },
+    {
+      "id": "noaa_tides_api",
+      "label": "NOAA Tides & Currents",
+      "layer": "external",
+      "status": "active",
+      "description": "NOAA CO-OPS API for tide predictions and water levels at port stations. Critical for berth availability — large vessels cannot dock during low tides.",
+      "source": null,
+      "github": "https://tidesandcurrents.noaa.gov/api/"
+    },
+    {
+      "id": "cmems_api",
+      "label": "CMEMS Ocean Currents",
+      "layer": "external",
+      "status": "active",
+      "description": "Copernicus Marine Environment Monitoring Service. Provides ocean surface current vectors and sea surface temperature. Currents affect vessel speed and therefore ETA into port.",
+      "source": null,
+      "github": "https://data.marine.copernicus.eu/"
+    },
+    {
+      "id": "fred_api",
+      "label": "FRED Economics API",
+      "layer": "external",
+      "status": "active",
+      "description": "Federal Reserve Economic Data. We ingest GSCPI (supply chain pressure), DCOILWTICO (crude oil price), and DTWEXBGS (trade-weighted dollar index). These macro signals correlate with port volumes weeks ahead.",
+      "source": null,
+      "github": "https://fred.stlouisfed.org/docs/api/fred/"
+    },
+    {
+      "id": "gdelt_api",
+      "label": "GDELT News Feed",
+      "layer": "external",
+      "status": "planned",
+      "description": "Global Database of Events, Language, and Tone. We filter for maritime disruption keywords (strike, blockade, grounding). News events can predict sudden congestion spikes 12-24h before AIS data reflects them.",
+      "source": null,
+      "github": "https://www.gdeltproject.org/"
+    },
+    {
+      "id": "comtrade_api",
+      "label": "UN Comtrade API",
+      "layer": "external",
+      "status": "planned",
+      "description": "United Nations trade flow database. Monthly import/export volumes by commodity and country. Seasonal trade surges (Q4 holiday shipping) correlate with port congestion 2-4 weeks later.",
+      "source": null,
+      "github": "https://comtradeplus.un.org/"
+    },
+
+    {
+      "id": "port_loader",
+      "label": "Port Loader",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Loads target port coordinates and generates 200nm (3.3°) bounding boxes for AIS filtering. Reads from port configuration and produces the geographic boundaries that tell the AIS client which area of the ocean to monitor.",
+      "source": "ingestion/port_loader.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/port_loader.py"
+    },
+    {
+      "id": "ais_client",
+      "label": "AIS Stream Client",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Async WebSocket client that connects to AISStream, receives vessel position messages, validates them with Pydantic models, buffers into batches, and flushes to S3 as NDJSON. Supports max_duration_seconds for the 5-minute hourly batch mode.",
+      "source": "ingestion/clients/ais_stream.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/clients/ais_stream.py"
+    },
+    {
+      "id": "weather_client",
+      "label": "Weather Client",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Fetches marine weather observations from Open-Meteo Marine API for all target port coordinates. Returns wave height, swell period, wind speed, and sea surface temperature. Validates output with Pandera schema before S3 upload.",
+      "source": "ingestion/clients/weather.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/clients/weather.py"
+    },
+    {
+      "id": "noaa_tides_client",
+      "label": "NOAA Tides Client",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Fetches tide predictions and water level observations from NOAA CO-OPS stations near target ports. Water levels affect berth accessibility for deep-draft vessels.",
+      "source": "ingestion/clients/noaa_tides.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/clients/noaa_tides.py"
+    },
+    {
+      "id": "cmems_client",
+      "label": "CMEMS Client",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Downloads ocean current data from Copernicus Marine Service using the copernicusmarine Python API. Extracts surface current speed and direction within port approach areas.",
+      "source": "ingestion/clients/cmems.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/clients/cmems.py"
+    },
+    {
+      "id": "carrier_clients",
+      "label": "Carrier Scrapers",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Web scrapers for container shipping lines (Maersk, CMA CGM, MSC). Extract vessel schedules, port calls, and delay announcements. Built on a shared BaseCarrierClient with rate limiting and retry logic.",
+      "source": "ingestion/clients/carriers/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/ingestion/clients/carriers"
+    },
+    {
+      "id": "config",
+      "label": "Settings & Config",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Pydantic BaseSettings class that loads all API keys, S3 bucket names, database credentials, and port configurations from environment variables (.env file). Single source of truth for all secrets.",
+      "source": "ingestion/config.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/config.py"
+    },
+    {
+      "id": "s3_writer",
+      "label": "S3 Writer",
+      "layer": "ingestion",
+      "status": "implemented",
+      "description": "Utility module that writes NDJSON batches to S3 with Hive-style partitioning (source=ais/date=2026-05-04/). Handles boto3 client creation, content encoding, and upload error handling.",
+      "source": "ingestion/s3_writer.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/s3_writer.py"
+    },
+
+    {
+      "id": "s3_raw",
+      "label": "S3 Raw Bucket",
+      "layer": "storage",
+      "status": "active",
+      "description": "AWS S3 bucket storing raw NDJSON files partitioned by source and date. This is the immutable data lake layer — raw data is never modified, only appended. Structure: s3://dpl-raw/raw/source={name}/date={YYYY-MM-DD}/{timestamp}.ndjson",
+      "source": null,
+      "github": null
+    },
+
+    {
+      "id": "prefect_ingest",
+      "label": "Hourly Ingestion Flow",
+      "layer": "orchestration",
+      "status": "implemented",
+      "description": "Prefect @flow that submits all ingestion tasks concurrently using .submit(). Runs on cron '0 * * * *' (top of every hour). Each task has retries=3 with exponential backoff [10s, 30s, 60s]. AIS task runs for exactly 5 minutes then shuts down gracefully.",
+      "source": "orchestration/flows/ingest_batch.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/orchestration/flows/ingest_batch.py"
+    },
+    {
+      "id": "prefect_ais",
+      "label": "AIS Streaming Flow",
+      "layer": "orchestration",
+      "status": "implemented",
+      "description": "Dedicated Prefect @flow for the async AIS WebSocket consumer. Originally designed for 24/7 streaming, now being refactored into a 5-minute batch task within the hourly ingestion flow.",
+      "source": "orchestration/flows/ingest_ais.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/orchestration/flows/ingest_ais.py"
+    },
+    {
+      "id": "prefect_dbt",
+      "label": "Hourly dbt Flow",
+      "layer": "orchestration",
+      "status": "planned",
+      "description": "Prefect @flow that runs at '15 * * * *' (15 minutes past each hour). Three sequential tasks: (1) load NDJSON from S3 → Postgres raw tables, (2) run dbt build (models + tests), (3) check source freshness. Offset by 15 minutes to give ingestion flow time to finish.",
+      "source": "orchestration/flows/dbt_flow.py",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/orchestration/flows/dbt_flow.py"
+    },
+
+    {
+      "id": "pg_raw",
+      "label": "Postgres raw.* Tables",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Raw data loaded from S3 NDJSON into Postgres tables: raw_ais_positions, raw_weather_observations, raw_fred_indicators, raw_comtrade_flows, raw_gdelt_events. These are the dbt 'sources' — the starting point for all transformations.",
+      "source": "warehouse/models/staging/sources.yml",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/staging/sources.yml"
+    },
+    {
+      "id": "stg_ais",
+      "label": "stg_ais_positions",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Staging view that cleans raw AIS data: casts types, deduplicates by (mmsi, timestamp), and classifies vessel zone (at_berth, at_anchor, approaching, in_transit) based on speed and distance from port center using a Haversine approximation.",
+      "source": "warehouse/models/staging/stg_ais_positions.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/staging/stg_ais_positions.sql"
+    },
+    {
+      "id": "stg_weather",
+      "label": "stg_weather_observations",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Staging view that cleans weather data: casts numeric columns, filters impossible values (wave_height > 25m), and standardizes timestamps to UTC.",
+      "source": "warehouse/models/staging/stg_weather_observations.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/staging/stg_weather_observations.sql"
+    },
+    {
+      "id": "stg_comtrade",
+      "label": "stg_comtrade_flows",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Staging view that cleans UN Comtrade trade flow data: standardizes country codes, filters to maritime-relevant HS commodity codes, and casts monetary values.",
+      "source": "warehouse/models/staging/stg_comtrade_flows.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/staging/stg_comtrade_flows.sql"
+    },
+    {
+      "id": "stg_fred",
+      "label": "stg_fred_indicators",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Staging view that cleans FRED economic data: converts FRED's '.' missing value sentinel to NULL, casts dates, and filters to only the 3 tracked series (GSCPI, DCOILWTICO, DTWEXBGS).",
+      "source": "warehouse/models/staging/stg_fred_indicators.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/staging/stg_fred_indicators.sql"
+    },
+    {
+      "id": "mart_congestion",
+      "label": "mart_port_congestion",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Mart table that calculates the daily congestion score per port: total_vessels, vessels_at_berth, vessels_at_anchor, vessels_approaching, and congestion_score (ratio of anchored to total). Being refactored to hourly grain for the new system.",
+      "source": "warehouse/models/marts/mart_port_congestion_daily.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/marts/mart_port_congestion_daily.sql"
+    },
+    {
+      "id": "mart_vessel",
+      "label": "mart_vessel_daily",
+      "layer": "transformation",
+      "status": "implemented",
+      "description": "Mart table that aggregates per-vessel daily statistics: avg speed, max speed, speed variability, total distance traveled, time spent at anchor vs. in transit. These behavioral features feed the congestion model.",
+      "source": "warehouse/models/marts/mart_vessel_daily.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/marts/mart_vessel_daily.sql"
+    },
+    {
+      "id": "mart_port_hourly",
+      "label": "mart_port_status_hourly",
+      "layer": "transformation",
+      "status": "planned",
+      "description": "NEW mart table for the pivot. Joins hourly vessel counts (per 10nm/50nm/200nm ring), weather data, and macro indicators into a single row per port per hour. This is the primary feature table for the LightGBM congestion classifier.",
+      "source": "warehouse/models/marts/mart_port_status_hourly.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/marts/mart_port_status_hourly.sql"
+    },
+    {
+      "id": "mart_vessel_inbound",
+      "label": "mart_vessel_inbound",
+      "layer": "transformation",
+      "status": "planned",
+      "description": "NEW mart table. Aggregates inbound vessel counts into range rings (10nm, 50nm, 200nm) per port per hour. Uses Haversine distance approximation. This is the strongest predictive signal for future congestion.",
+      "source": "warehouse/models/marts/mart_vessel_inbound.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/marts/mart_vessel_inbound.sql"
+    },
+    {
+      "id": "dbt_tests",
+      "label": "dbt Data Quality Tests",
+      "layer": "transformation",
+      "status": "planned",
+      "description": "8 custom SQL tests validating data quality: coordinate ranges (-90/90), speed sanity (<50 kts), congestion score [0,1], no future timestamps, FRED series completeness, weather coverage per port, no duplicate GDELT events, positive trade values.",
+      "source": "warehouse/tests/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/warehouse/tests"
+    },
+
+    {
+      "id": "feast_repo",
+      "label": "Feast Feature Repo",
+      "layer": "features",
+      "status": "planned",
+      "description": "Feast feature store definitions. Registers feature views for port hourly status, inbound vessel counts, weather, and macro indicators. Provides point-in-time correct joins for training to prevent data leakage in time-series forecasting.",
+      "source": "features/definitions/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/features/definitions"
+    },
+    {
+      "id": "feast_online",
+      "label": "Feast Online Store",
+      "layer": "features",
+      "status": "planned",
+      "description": "Feast online store (backed by Postgres or Redis). Stores the latest feature values for real-time inference. The FastAPI service queries this to get current port state when making predictions.",
+      "source": null,
+      "github": null
+    },
+
+    {
+      "id": "target_congestion",
+      "label": "Congestion Target",
+      "layer": "ml",
+      "status": "planned",
+      "description": "Binary classification target: is_congested_24h. Defined as 1 when the future (T+24h) anchorage count exceeds the port's 75th percentile historical threshold. Computed via a self-join in dbt on the hourly anchorage counts table.",
+      "source": "warehouse/models/targets/target_port_congestion.sql",
+      "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/targets/target_port_congestion.sql"
+    },
+    {
+      "id": "lgbm_model",
+      "label": "LightGBM Classifier",
+      "layer": "ml",
+      "status": "planned",
+      "description": "Gradient-boosted tree classifier trained to predict is_congested_24h from hourly port features. Chosen over deep learning for interpretability: tree-based SHAP values provide exact feature importance that powers the dashboard's transparency panel.",
+      "source": "models/training/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/models/training"
+    },
+    {
+      "id": "mlflow_registry",
+      "label": "MLflow Model Registry",
+      "layer": "ml",
+      "status": "planned",
+      "description": "MLflow tracking server for experiment logging and model versioning. Each training run logs hyperparameters, F1/ROC-AUC metrics, SHAP plots, and the serialized model artifact. The production model is promoted via the Registry's staging → production workflow.",
+      "source": null,
+      "github": null
+    },
+    {
+      "id": "shap_explainer",
+      "label": "SHAP Feature Importance",
+      "layer": "ml",
+      "status": "planned",
+      "description": "SHAP (SHapley Additive exPlanations) values computed on each prediction. Tells us exactly how much each feature contributed: '45% inbound vessels at 50nm, 30% wave height, 15% anchorage count'. This is serialized and sent to the dashboard transparency panel.",
+      "source": "models/evaluation/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/models/evaluation"
+    },
+
+    {
+      "id": "fastapi",
+      "label": "FastAPI Inference Service",
+      "layer": "serving",
+      "status": "planned",
+      "description": "Python REST API that serves congestion predictions. Endpoints: GET /api/ports/{code}/status (current metrics), GET /api/ports/{code}/forecast (48h congestion predictions), GET /api/ports/{code}/vessels (inbound vessel list), GET /api/ports/{code}/sources (data source health).",
+      "source": "serving/app/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/serving/app"
+    },
+    {
+      "id": "fargate_service",
+      "label": "AWS ECS Fargate",
+      "layer": "serving",
+      "status": "planned",
+      "description": "Serverless container runtime. Runs both the hourly batch ingestion tasks and the always-on FastAPI service. No EC2 instances to manage. Estimated cost: $2-3/month for the batch tasks, ~$5/month for the API service (0.25 vCPU, 0.5 GB).",
+      "source": "infra/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/infra"
+    },
+
+    {
+      "id": "dashboard",
+      "label": "Port Intelligence Dashboard",
+      "layer": "frontend",
+      "status": "implemented",
+      "description": "Interactive single-page HTML/CSS/JS dashboard. Features: Leaflet map with 10/50/200nm range rings, color-coded vessel markers, port selector (5 ports), congestion forecast chart (1-48h), inbound vessel table with ETA & confidence, 6-week trend line, and a data source transparency panel showing feature contribution percentages.",
+      "source": "dashboard/",
+      "github": "https://github.com/loicns/data-party-logistics/tree/main/dashboard"
+    }
+  ],
+  "edges": [
+    { "from": "aisstream",       "to": "ais_client" },
+    { "from": "noaa_api",        "to": "weather_client" },
+    { "from": "noaa_tides_api",  "to": "noaa_tides_client" },
+    { "from": "cmems_api",       "to": "cmems_client" },
+    { "from": "fred_api",        "to": "config" },
+    { "from": "gdelt_api",       "to": "config" },
+    { "from": "comtrade_api",    "to": "config" },
+
+    { "from": "port_loader",     "to": "ais_client" },
+    { "from": "config",          "to": "ais_client" },
+    { "from": "config",          "to": "weather_client" },
+    { "from": "config",          "to": "noaa_tides_client" },
+    { "from": "config",          "to": "cmems_client" },
+
+    { "from": "ais_client",      "to": "s3_writer" },
+    { "from": "weather_client",  "to": "s3_writer" },
+    { "from": "noaa_tides_client","to": "s3_writer" },
+    { "from": "cmems_client",    "to": "s3_writer" },
+    { "from": "carrier_clients", "to": "s3_writer" },
+    { "from": "s3_writer",       "to": "s3_raw" },
+
+    { "from": "prefect_ingest",  "to": "ais_client",      "label": "submits" },
+    { "from": "prefect_ingest",  "to": "weather_client",   "label": "submits" },
+    { "from": "prefect_ingest",  "to": "noaa_tides_client","label": "submits" },
+    { "from": "prefect_ingest",  "to": "cmems_client",     "label": "submits" },
+    { "from": "prefect_ais",     "to": "ais_client",       "label": "legacy" },
+
+    { "from": "s3_raw",          "to": "pg_raw" },
+    { "from": "prefect_dbt",     "to": "pg_raw",           "label": "loads" },
+    { "from": "pg_raw",          "to": "stg_ais" },
+    { "from": "pg_raw",          "to": "stg_weather" },
+    { "from": "pg_raw",          "to": "stg_comtrade" },
+    { "from": "pg_raw",          "to": "stg_fred" },
+
+    { "from": "stg_ais",         "to": "mart_congestion" },
+    { "from": "stg_ais",         "to": "mart_vessel" },
+    { "from": "stg_ais",         "to": "mart_port_hourly" },
+    { "from": "stg_ais",         "to": "mart_vessel_inbound" },
+    { "from": "stg_weather",     "to": "mart_port_hourly" },
+    { "from": "stg_fred",        "to": "mart_port_hourly" },
+    { "from": "stg_comtrade",    "to": "mart_port_hourly" },
+
+    { "from": "dbt_tests",       "to": "stg_ais",          "label": "validates" },
+    { "from": "dbt_tests",       "to": "mart_congestion",   "label": "validates" },
+
+    { "from": "mart_port_hourly","to": "feast_repo" },
+    { "from": "mart_vessel_inbound", "to": "feast_repo" },
+    { "from": "feast_repo",      "to": "feast_online" },
+
+    { "from": "mart_port_hourly","to": "target_congestion" },
+    { "from": "feast_repo",      "to": "lgbm_model",       "label": "training data" },
+    { "from": "target_congestion","to": "lgbm_model",       "label": "labels" },
+    { "from": "lgbm_model",      "to": "mlflow_registry" },
+    { "from": "lgbm_model",      "to": "shap_explainer" },
+
+    { "from": "mlflow_registry", "to": "fastapi",           "label": "loads model" },
+    { "from": "feast_online",    "to": "fastapi",           "label": "live features" },
+    { "from": "shap_explainer",  "to": "fastapi",           "label": "feature importance" },
+    { "from": "fastapi",         "to": "dashboard" },
+    { "from": "fargate_service", "to": "prefect_ingest",    "label": "runs" },
+    { "from": "fargate_service", "to": "fastapi",           "label": "hosts" }
+  ]
+}

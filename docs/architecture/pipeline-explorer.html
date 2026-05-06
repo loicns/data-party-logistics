@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Party Logistics — Pipeline Explorer</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f172a;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;overflow:hidden;height:100vh}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+#toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);border-bottom:1px solid #1e293b;padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+#toolbar h1{font-size:16px;font-weight:700;color:#f8fafc;white-space:nowrap}
+#toolbar h1 span{color:#64748b;font-weight:400;font-size:13px;margin-left:8px}
+.layer-filters{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.layer-btn{padding:4px 12px;border-radius:20px;border:1px solid #334155;background:transparent;color:#94a3b8;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s}
+.layer-btn.active{color:#fff;border-color:currentColor}
+.layer-btn:hover{background:rgba(255,255,255,.05)}
+.status-legend{display:flex;gap:12px;margin-left:16px;padding-left:16px;border-left:1px solid #1e293b}
+.status-legend span{font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px}
+.status-legend span::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block}
+.status-legend .s-impl::before{background:#22c55e}
+.status-legend .s-active::before{background:#3b82f6}
+.status-legend .s-plan::before{background:#64748b}
+
+#canvas{width:100%;height:100%;padding-top:60px}
+svg{width:100%;height:100%}
+
+.node-group{cursor:pointer}
+.node-circle{stroke-width:2;transition:r .2s,stroke-width .2s}
+.node-group:hover .node-circle{stroke-width:3}
+.node-group.clickable:hover .node-circle{filter:brightness(1.3)}
+.node-label{font-size:11px;font-weight:500;fill:#cbd5e1;text-anchor:middle;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.edge{stroke:#334155;stroke-width:1.2;fill:none;opacity:.5}
+.edge-label{font-size:9px;fill:#475569;text-anchor:middle}
+.edge.highlighted{stroke:#60a5fa;stroke-width:2;opacity:1}
+
+#tooltip{position:fixed;z-index:200;max-width:380px;background:rgba(15,23,42,.96);backdrop-filter:blur(16px);border:1px solid #334155;border-radius:12px;padding:16px;pointer-events:none;opacity:0;transition:opacity .15s;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#tooltip .tt-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+#tooltip .tt-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+#tooltip .tt-title{font-size:14px;font-weight:600;color:#f1f5f9}
+#tooltip .tt-layer{font-size:11px;color:#64748b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+#tooltip .tt-desc{font-size:12px;color:#94a3b8;line-height:1.6;margin-bottom:10px}
+#tooltip .tt-source{font-size:11px;color:#60a5fa;display:flex;align-items:center;gap:4px}
+#tooltip .tt-status{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase}
+.tt-status.implemented{background:rgba(34,197,94,.15);color:#22c55e}
+.tt-status.active{background:rgba(59,130,246,.15);color:#3b82f6}
+.tt-status.planned{background:rgba(100,116,139,.15);color:#94a3b8}
+
+#help-badge{position:fixed;bottom:20px;right:20px;background:rgba(30,41,59,.9);border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:11px;color:#64748b;z-index:100;line-height:1.6}
+#help-badge kbd{background:#1e293b;border:1px solid #475569;border-radius:3px;padding:1px 5px;font-family:inherit;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Pipeline Explorer <span>Data Party Logistics</span></h1>
+  <div class="layer-filters" id="filters"></div>
+  <div class="status-legend">
+    <span class="s-impl">Implemented</span>
+    <span class="s-active">Active/External</span>
+    <span class="s-plan">Planned</span>
+  </div>
+</div>
+
+<div id="canvas"><svg id="graph"></svg></div>
+<div id="tooltip"></div>
+<div id="help-badge">
+  <kbd>Scroll</kbd> Zoom &nbsp; <kbd>Drag</kbd> Pan &nbsp; <kbd>Click</kbd> Open Source
+</div>
+
+<script>
+const STATUS_COLORS = { implemented: '#22c55e', active: '#3b82f6', planned: '#64748b' };
+const NODE_RADIUS = 18;
+let data, simulation, layerMap, activeFilters;
+
+async function init() {
+  const resp = await fetch('pipeline-data.json');
+  data = await resp.json();
+  layerMap = Object.fromEntries(data.layers.map(l => [l.id, l]));
+  activeFilters = new Set(data.layers.map(l => l.id));
+  buildFilters();
+  buildGraph();
+}
+
+function buildFilters() {
+  const container = document.getElementById('filters');
+  data.layers.forEach(layer => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn active';
+    btn.textContent = layer.label;
+    btn.style.color = layer.color;
+    btn.style.borderColor = layer.color;
+    btn.dataset.layer = layer.id;
+    btn.addEventListener('click', () => toggleLayer(layer.id, btn));
+    container.appendChild(btn);
+  });
+}
+
+function toggleLayer(layerId, btn) {
+  if (activeFilters.has(layerId)) {
+    activeFilters.delete(layerId);
+    btn.classList.remove('active');
+    btn.style.color = '#475569';
+    btn.style.borderColor = '#334155';
+  } else {
+    activeFilters.add(layerId);
+    btn.classList.add('active');
+    btn.style.color = layerMap[layerId].color;
+    btn.style.borderColor = layerMap[layerId].color;
+  }
+  updateVisibility();
+}
+
+function updateVisibility() {
+  d3.selectAll('.node-group').attr('opacity', d => activeFilters.has(d.layer) ? 1 : 0.08);
+  d3.selectAll('.edge').attr('opacity', d => {
+    const srcVis = activeFilters.has(d.source.layer || getNodeLayer(d.source));
+    const tgtVis = activeFilters.has(d.target.layer || getNodeLayer(d.target));
+    return (srcVis && tgtVis) ? 0.5 : 0.04;
+  });
+}
+
+function getNodeLayer(nodeOrId) {
+  const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId.id;
+  const n = data.nodes.find(n => n.id === id);
+  return n ? n.layer : '';
+}
+
+function buildGraph() {
+  const svg = d3.select('#graph');
+  const width = window.innerWidth;
+  const height = window.innerHeight - 60;
+
+  const g = svg.append('g');
+
+  // Zoom
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 4])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+
+  // Arrow markers
+  svg.append('defs').append('marker')
+    .attr('id', 'arrowhead').attr('viewBox', '0 -5 10 10')
+    .attr('refX', 28).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-4L10,0L0,4').attr('fill', '#334155');
+
+  // Build links array
+  const nodeIds = new Set(data.nodes.map(n => n.id));
+  const links = data.edges.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to))
+    .map(e => ({ source: e.from, target: e.to, label: e.label || '' }));
+
+  // Force simulation with layered Y positioning
+  const layerY = Object.fromEntries(data.layers.map(l => [l.id, 80 + l.order * 110]));
+
+  simulation = d3.forceSimulation(data.nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120).strength(0.3))
+    .force('charge', d3.forceManyBody().strength(-400))
+    .force('x', d3.forceX(width / 2).strength(0.05))
+    .force('y', d3.forceY(d => layerY[d.layer] || height / 2).strength(0.4))
+    .force('collision', d3.forceCollide(NODE_RADIUS + 12));
+
+  // Draw edges
+  const edgeGroup = g.append('g');
+  const edge = edgeGroup.selectAll('.edge')
+    .data(links).join('line')
+    .attr('class', 'edge')
+    .attr('marker-end', 'url(#arrowhead)');
+
+  // Draw nodes
+  const nodeGroup = g.append('g');
+  const node = nodeGroup.selectAll('.node-group')
+    .data(data.nodes).join('g')
+    .attr('class', d => `node-group ${d.github ? 'clickable' : ''}`)
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag', dragging)
+      .on('end', dragEnd));
+
+  node.append('circle')
+    .attr('class', 'node-circle')
+    .attr('r', NODE_RADIUS)
+    .attr('fill', d => {
+      const c = layerMap[d.layer]?.color || '#64748b';
+      return d3.color(c).copy({opacity: 0.2});
+    })
+    .attr('stroke', d => layerMap[d.layer]?.color || '#64748b');
+
+  // Status indicator dot
+  node.append('circle')
+    .attr('r', 4)
+    .attr('cx', NODE_RADIUS * 0.65)
+    .attr('cy', -NODE_RADIUS * 0.65)
+    .attr('fill', d => STATUS_COLORS[d.status] || '#64748b');
+
+  node.append('text')
+    .attr('class', 'node-label')
+    .attr('dy', NODE_RADIUS + 14)
+    .text(d => d.label.length > 22 ? d.label.slice(0, 20) + '…' : d.label);
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+
+  node.on('mouseenter', (event, d) => {
+    const layer = layerMap[d.layer];
+    tooltip.innerHTML = `
+      <div class="tt-header">
+        <div class="tt-dot" style="background:${layer?.color || '#64748b'}"></div>
+        <div class="tt-title">${d.label}</div>
+        <span class="tt-status ${d.status}">${d.status}</span>
+      </div>
+      <div class="tt-layer">${layer?.label || d.layer}</div>
+      <div class="tt-desc">${d.description}</div>
+      ${d.source ? `<div class="tt-source">📁 ${d.source}</div>` : ''}
+      ${d.github ? `<div class="tt-source" style="margin-top:4px">🔗 Click to open on GitHub</div>` : ''}
+    `;
+    tooltip.style.opacity = 1;
+
+    // Highlight connected edges
+    edge.classed('highlighted', e =>
+      (e.source.id || e.source) === d.id || (e.target.id || e.target) === d.id
+    );
+  });
+
+  node.on('mousemove', (event) => {
+    const x = event.clientX + 16;
+    const y = event.clientY - 10;
+    tooltip.style.left = Math.min(x, window.innerWidth - 400) + 'px';
+    tooltip.style.top = Math.min(y, window.innerHeight - 250) + 'px';
+  });
+
+  node.on('mouseleave', () => {
+    tooltip.style.opacity = 0;
+    edge.classed('highlighted', false);
+  });
+
+  node.on('click', (event, d) => {
+    if (d.github) window.open(d.github, '_blank');
+  });
+
+  // Tick
+  simulation.on('tick', () => {
+    edge
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  // Center view
+  svg.call(zoom.transform, d3.zoomIdentity.translate(width * 0.1, 20).scale(0.85));
+}
+
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x; d.fy = d.y;
+}
+function dragging(event, d) { d.fx = event.x; d.fy = event.y; }
+function dragEnd(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null; d.fy = null;
+}
+
+init();
+</script>
+</body>
+</html>

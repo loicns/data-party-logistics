@@ -43,6 +43,7 @@ packages = ["ingestion", "warehouse", "features", "models", "serving", "agent", 
 target-version = "py312"
 line-length = 88
 src = ["ingestion", "warehouse", "features", "models", "serving", "agent", "dashboard", "orchestration"]
+exclude = ["infra/", "**/*.sh"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]

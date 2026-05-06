@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Party Logistics — Port Operations Intelligence</title>
+    <meta name="description" content="Real-time port congestion tracking, vessel ETA prediction, and operational intelligence for maritime logistics.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ====== TOP NAVIGATION BAR ====== -->
+<header id="top-nav">
+    <div class="nav-left">
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <rect width="28" height="28" rx="6" fill="#0ea5e9"/>
+                <path d="M7 14h14M14 7v14M9 9l10 10M19 9L9 19" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+                <circle cx="14" cy="14" r="4" fill="#fff"/>
+            </svg>
+            <span class="logo-text">Data Party Logistics</span>
+        </div>
+        <span class="nav-divider"></span>
+        <span class="nav-subtitle">Port Operations Intelligence</span>
+    </div>
+    <div class="nav-center">
+        <div class="port-selector" id="port-selector">
+            <button class="port-selector-btn" id="port-selector-btn">
+                <span class="port-flag" id="selected-port-flag">🇳🇱</span>
+                <span class="port-name" id="selected-port-name">Rotterdam</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
+            </button>
+            <div class="port-dropdown" id="port-dropdown"></div>
+        </div>
+    </div>
+    <div class="nav-right">
+        <div class="live-indicator">
+            <span class="live-dot"></span>
+            <span>Live</span>
+        </div>
+        <span class="last-update" id="last-update">Updated 3 min ago</span>
+    </div>
+</header>
+
+<!-- ====== MAIN LAYOUT ====== -->
+<main id="app">
+
+    <!-- ====== LEFT: MAP PANEL ====== -->
+    <section class="map-panel" id="map-panel">
+        <div class="panel-header">
+            <h2>Vessel Positions</h2>
+            <div class="map-controls">
+                <button class="map-btn active" data-range="200">200nm</button>
+                <button class="map-btn" data-range="50">50nm</button>
+                <button class="map-btn" data-range="10">10nm</button>
+            </div>
+        </div>
+        <div id="map"></div>
+        <div class="map-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>At Berth</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>At Anchor</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>Approaching</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#64748b"></span>In Transit</div>
+        </div>
+    </section>
+
+    <!-- ====== RIGHT: DATA PANELS ====== -->
+    <section class="data-panels">
+
+        <!-- PORT STATUS NOW -->
+        <div class="panel port-status-panel" id="port-status-panel">
+            <div class="panel-header">
+                <h2>Port Status <span class="time-label">Now</span></h2>
+            </div>
+            <div class="metric-cards" id="metric-cards">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- CONGESTION FORECAST -->
+        <div class="panel forecast-panel" id="forecast-panel">
+            <div class="panel-header">
+                <h2>Congestion Forecast</h2>
+                <div class="forecast-legend">
+                    <span class="fl-item"><span class="fl-dot" style="background:#22c55e"></span>Low</span>
+                    <span class="fl-item"><span class="fl-dot" style="background:#f59e0b"></span>Medium</span>
+                    <span class="fl-item"><span class="fl-dot" style="background:#ef4444"></span>High</span>
+                </div>
+            </div>
+            <div class="forecast-chart-wrapper">
+                <canvas id="forecast-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- INBOUND VESSELS TABLE -->
+        <div class="panel vessels-panel" id="vessels-panel">
+            <div class="panel-header">
+                <h2>Inbound Vessels</h2>
+                <div class="vessel-count" id="vessel-count">12 vessels tracked</div>
+            </div>
+            <div class="table-wrapper">
+                <table id="vessels-table">
+                    <thead>
+                        <tr>
+                            <th>Vessel</th>
+                            <th>MMSI</th>
+                            <th>Zone</th>
+                            <th>Distance</th>
+                            <th>Speed</th>
+                            <th>ETA</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vessels-tbody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- WEEKLY TRENDS -->
+        <div class="panel trends-panel" id="trends-panel">
+            <div class="panel-header">
+                <h2>Congestion Trend <span class="time-label">6 Weeks</span></h2>
+            </div>
+            <div class="trend-chart-wrapper">
+                <canvas id="trend-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- DATA SOURCES -->
+        <div class="panel sources-panel" id="sources-panel">
+            <div class="panel-header">
+                <h2>Prediction Data Sources</h2>
+                <span class="sources-note">Transparency: what feeds our predictions</span>
+            </div>
+            <div class="sources-grid" id="sources-grid">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+    </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

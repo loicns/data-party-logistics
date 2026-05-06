@@ -295,8 +295,8 @@ async def consume(
                         record = msg.to_record()  # Flatten to dict
                         buffer.add(record)  # Add to in-memory buffer
 
-                        # Log every 100 records — too frequent logging wastes I/O
-                        if buffer.size % 100 == 0:
+                        # Log every 500 records to avoid log spam in production
+                        if buffer.size % 500 == 0:
                             logger.debug("buffer_status", size=buffer.size)
 
                     except Exception:
@@ -304,6 +304,10 @@ async def consume(
                         continue
 
             except websockets.ConnectionClosed:
+                if shutdown_event.is_set():
+                    # Intentional shutdown — watchdog closed the connection.
+                    # Don't reconnect; exit the outer loop cleanly.
+                    break
                 logger.warning("websocket_disconnected", action="reconnecting")
                 continue
 
