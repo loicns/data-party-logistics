@@ -11,6 +11,9 @@ sources:
     tables:
       - name: raw_ais_positions
         description: "AIS vessel position reports from AISStream.io WebSocket consumer"
+        freshness:
+          warn_after: {count: 2, period: hour}
+          error_after: {count: 4, period: hour}
         # Source: ingestion/clients/ais_stream.py → S3 → loaded by dbt_flow.py
         columns:
           - name: mmsi

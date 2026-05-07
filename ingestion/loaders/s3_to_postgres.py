@@ -165,7 +165,10 @@ def ndjson_to_tsv_buffer(
                 values.append("\\N")
             else:
                 # Escape characters that would break TSV format
-                values.append(str(val).replace("\t", " ").replace("\n", " "))
+                safe_str = (
+                    str(val).replace("\\", "\\\\").replace("\t", " ").replace("\n", " ")
+                )
+                values.append(safe_str)
         buf.write("\t".join(values) + "\n")
         rows_written += 1
 
