@@ -131,6 +131,7 @@ def list_ndjson_keys(s3_client: Any, bucket: str, prefix: str) -> list[str]:
 def ndjson_to_tsv_buffer(
     lines: list[str],
     column_map: list[tuple[str, str]],
+    sample_minutes: int = 0,
 ) -> io.StringIO:
     r"""Convert NDJSON lines to a TSV buffer suitable for COPY FROM.
 
@@ -158,6 +159,19 @@ def ndjson_to_tsv_buffer(
             logger.warning("skipping_invalid_json", line=line[:80])
             continue
 
+        if sample_minutes > 0:
+            # Quickly parse the minute out of the ISO timestamp string
+            # e.g., "2026-04-16T19:05:33Z" -> index 14 & 15 is "05"
+            ts_str = (
+                record.get("received_at")
+                or record.get("timestamp")
+                or record.get("time_utc")
+            )
+            if isinstance(ts_str, str) and len(ts_str) >= 16:
+                minute_str = ts_str[14:16]
+                if minute_str.isdigit() and int(minute_str) >= sample_minutes:
+                    continue  # Skip this record! It is outside the first N minutes.
+
         values: list[str] = []
         for json_key in json_keys:
             val = record.get(json_key)
@@ -183,6 +197,7 @@ def load_file(
     key: str,
     table: str,
     column_map: list[tuple[str, str]],
+    sample_minutes: int = 0,
 ) -> int:
     """Download one NDJSON file from S3 and COPY it into Postgres.
 
@@ -204,7 +219,7 @@ def load_file(
         return 0
 
     pg_columns = [pg for _jk, pg in column_map]
-    tsv_buf = ndjson_to_tsv_buffer(lines, column_map)
+    tsv_buf = ndjson_to_tsv_buffer(lines, column_map, sample_minutes)
 
     # Build the COPY query using psycopg's SQL template system
     col_sql = sql.SQL(", ").join(sql.Identifier(c) for c in pg_columns)
@@ -255,6 +270,12 @@ def main() -> None:
         action="store_true",
         help="TRUNCATE the target table before loading (use for initial backfill)",
     )
+    parser.add_argument(
+        "--sample-minutes",
+        type=int,
+        default=0,
+        help="If set > 0, only loads records from the first N minutes of every hour.",
+    )
     args = parser.parse_args()
 
     column_map = TABLE_COLUMNS[args.table]
@@ -290,6 +311,7 @@ def main() -> None:
             key,
             args.table,
             column_map,
+            args.sample_minutes,
         )
 
     conn.close()
