@@ -2,6 +2,7 @@
 
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from prefect import flow, get_run_logger, task
 
@@ -9,8 +10,28 @@ from prefect import flow, get_run_logger, task
 DBT_PROJECT_DIR = Path(__file__).parent.parent.parent / "warehouse"
 
 
+def classify_loader_output(stdout: str) -> str:
+    """Translate loader stdout into a simple operational status.
+
+    WHY THIS HELPER EXISTS:
+    The S3 loader now has three valid outcomes:
+    - it loaded new files
+    - it found no new files
+    - it failed
+
+    Prefect operators should be able to tell those cases apart quickly in logs
+    and in the returned flow payload. A tiny helper keeps that interpretation
+    logic in one place instead of scattering string checks through the task body.
+    """
+    if "no_new_files_found" in stdout:
+        return "no_new_files"
+    if "load_complete" in stdout:
+        return "loaded_new_files"
+    return "completed"
+
+
 @task(retries=2, retry_delay_seconds=30, tags=["dbt", "load"])
-def load_raw_to_postgres() -> dict[str, bool]:
+def load_raw_to_postgres() -> dict[str, dict[str, Any]]:
     log = get_run_logger()
 
     sources = {
@@ -25,29 +46,48 @@ def load_raw_to_postgres() -> dict[str, bool]:
     for source_name, config in sources.items():
         log.info(f"Loading {source_name} into {config['table']}...")
 
-        try:
-            result = subprocess.run(
-                [
-                    "uv",
-                    "run",
-                    "python",
-                    "-m",
-                    "ingestion.loaders.s3_to_postgres",
-                    "--table",
-                    config["table"],
-                    "--prefix",
-                    config["prefix"],
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            log.info(f"Successfully loaded {source_name}:\n{result.stdout}")
-            results[source_name] = True
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "ingestion.loaders.s3_to_postgres",
+                "--table",
+                config["table"],
+                "--prefix",
+                config["prefix"],
+            ],
+            capture_output=True,
+            text=True,
+        )
 
-        except subprocess.CalledProcessError as e:
-            log.error(f"Failed to load {source_name}. Error:\n{e.stderr}")
-            results[source_name] = False
+        if result.returncode != 0:
+            log.error(f"Failed to load {source_name}. Error:\n{result.stderr}")
+            results[source_name] = {
+                "ok": False,
+                "status": "failed",
+                "table": config["table"],
+                "prefix": config["prefix"],
+            }
+            continue
+
+        status = classify_loader_output(result.stdout)
+        if status == "no_new_files":
+            log.info(
+                "No new files found for %s under %s. Raw load skipped cleanly.",
+                source_name,
+                config["prefix"],
+            )
+        else:
+            log.info(f"Loader output for {source_name}:\n{result.stdout}")
+
+        results[source_name] = {
+            "ok": True,
+            "status": status,
+            "table": config["table"],
+            "prefix": config["prefix"],
+        }
 
     return results
 
@@ -110,6 +150,28 @@ def hourly_dbt_flow() -> dict:
 
     # 3. Check if the source data is arriving on time
     freshness_ok = check_dbt_freshness()
+
+    loaded_sources = [
+        name
+        for name, result in load_results.items()
+        if result["status"] == "loaded_new_files"
+    ]
+    idle_sources = [
+        name
+        for name, result in load_results.items()
+        if result["status"] == "no_new_files"
+    ]
+    failed_sources = [name for name, result in load_results.items() if not result["ok"]]
+
+    # This concise summary makes Prefect runs easier to scan:
+    # operators can immediately see whether the run processed fresh input,
+    # merely confirmed nothing new arrived, or hit a real ingestion problem.
+    log.info(
+        "Raw load summary | loaded=%s | no_new_files=%s | failed=%s",
+        loaded_sources or ["none"],
+        idle_sources or ["none"],
+        failed_sources or ["none"],
+    )
 
     return {"load": load_results, "build": dbt_success, "freshness": freshness_ok}
 

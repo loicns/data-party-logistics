@@ -16,6 +16,7 @@ import argparse  # Standard library: parse command-line arguments (--table, --pr
 import io  # Standard library: in-memory byte/string streams
 import json  # Standard library: JSON parsing
 import sys
+from datetime import UTC, datetime
 from typing import Any
 
 import boto3  # AWS SDK for Python — reads S3 files
@@ -78,6 +79,9 @@ TABLE_COLUMNS: dict[str, list[tuple[str, str]]] = {
     ],
 }
 
+MANIFEST_SCHEMA = "raw"
+MANIFEST_TABLE = "load_manifest"
+
 
 def get_s3_client() -> Any:
     """Create a boto3 S3 client using the project AWS profile."""
@@ -102,6 +106,131 @@ def get_pg_connection() -> psycopg.Connection:
         user=settings.postgres_user,  # "dpl"
         password=settings.postgres_password,  # From .env — NEVER printed in logs
     )
+
+
+def ensure_load_manifest(conn: psycopg.Connection) -> None:
+    """Create the raw load manifest table if it does not exist yet.
+
+    WHY A MANIFEST?
+    We want to load each S3 object once in normal operation. The manifest is a
+    tiny bookkeeping table keyed by (table_name, s3_key) that lets the loader
+    skip files it has already copied into Postgres.
+    """
+    create_query = sql.SQL(
+        """
+        CREATE TABLE IF NOT EXISTS {schema}.{table} (
+            table_name TEXT NOT NULL,
+            s3_key TEXT NOT NULL,
+            bucket TEXT NOT NULL,
+            loaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            row_count INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'loaded',
+            PRIMARY KEY (table_name, s3_key)
+        )
+        """
+    ).format(
+        schema=sql.Identifier(MANIFEST_SCHEMA),
+        table=sql.Identifier(MANIFEST_TABLE),
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(create_query)
+    conn.commit()
+
+
+def list_loaded_keys(
+    conn: psycopg.Connection,
+    table_name: str,
+    bucket: str,
+) -> set[str]:
+    """Return the set of S3 keys already loaded for a given raw table."""
+    query = sql.SQL(
+        """
+        SELECT s3_key
+        FROM {schema}.{table}
+        WHERE table_name = %s
+          AND bucket = %s
+          AND status = 'loaded'
+        """
+    ).format(
+        schema=sql.Identifier(MANIFEST_SCHEMA),
+        table=sql.Identifier(MANIFEST_TABLE),
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query, (table_name, bucket))
+        return {row[0] for row in cur.fetchall()}
+
+
+def filter_new_keys(
+    keys: list[str],
+    loaded_keys: set[str],
+) -> list[str]:
+    """Keep only keys that are not already present in the load manifest."""
+    return [key for key in keys if key not in loaded_keys]
+
+
+def record_loaded_file(
+    conn: psycopg.Connection,
+    *,
+    table_name: str,
+    bucket: str,
+    key: str,
+    row_count: int,
+) -> None:
+    """Insert or update the manifest row for a successfully loaded S3 object."""
+    query = sql.SQL(
+        """
+        INSERT INTO {schema}.{table} (
+            table_name,
+            s3_key,
+            bucket,
+            loaded_at,
+            row_count,
+            status
+        )
+        VALUES (%s, %s, %s, %s, %s, 'loaded')
+        ON CONFLICT (table_name, s3_key)
+        DO UPDATE SET
+            bucket = EXCLUDED.bucket,
+            loaded_at = EXCLUDED.loaded_at,
+            row_count = EXCLUDED.row_count,
+            status = EXCLUDED.status
+        """
+    ).format(
+        schema=sql.Identifier(MANIFEST_SCHEMA),
+        table=sql.Identifier(MANIFEST_TABLE),
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(
+            query,
+            (table_name, key, bucket, datetime.now(UTC), row_count),
+        )
+    conn.commit()
+
+
+def clear_manifest_for_table(
+    conn: psycopg.Connection,
+    *,
+    table_name: str,
+    bucket: str,
+) -> None:
+    """Remove manifest rows for a table when doing a destructive reload."""
+    query = sql.SQL(
+        """
+        DELETE FROM {schema}.{table}
+        WHERE table_name = %s
+          AND bucket = %s
+        """
+    ).format(
+        schema=sql.Identifier(MANIFEST_SCHEMA),
+        table=sql.Identifier(MANIFEST_TABLE),
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(query, (table_name, bucket))
+    conn.commit()
 
 
 def list_ndjson_keys(s3_client: Any, bucket: str, prefix: str) -> list[str]:
@@ -132,7 +261,7 @@ def ndjson_to_tsv_buffer(
     lines: list[str],
     column_map: list[tuple[str, str]],
     sample_minutes: int = 0,
-) -> io.StringIO:
+) -> tuple[io.StringIO, int]:
     r"""Convert NDJSON lines to a TSV buffer suitable for COPY FROM.
 
     WHY TSV (tab-separated values) not CSV?
@@ -187,7 +316,7 @@ def ndjson_to_tsv_buffer(
         rows_written += 1
 
     buf.seek(0)
-    return buf
+    return buf, rows_written
 
 
 def load_file(
@@ -219,7 +348,7 @@ def load_file(
         return 0
 
     pg_columns = [pg for _jk, pg in column_map]
-    tsv_buf = ndjson_to_tsv_buffer(lines, column_map, sample_minutes)
+    tsv_buf, rows_written = ndjson_to_tsv_buffer(lines, column_map, sample_minutes)
 
     # Build the COPY query using psycopg's SQL template system
     col_sql = sql.SQL(", ").join(sql.Identifier(c) for c in pg_columns)
@@ -241,7 +370,7 @@ def load_file(
             copy.write(data)
 
     conn.commit()
-    row_count = len(lines)
+    row_count = rows_written
     logger.info("loaded", key=key, rows=row_count)
     return row_count
 
@@ -276,11 +405,17 @@ def main() -> None:
         default=0,
         help="If set > 0, only loads records from the first N minutes of every hour.",
     )
+    parser.add_argument(
+        "--reload-existing",
+        action="store_true",
+        help="Load matching files even if they already exist in the manifest.",
+    )
     args = parser.parse_args()
 
     column_map = TABLE_COLUMNS[args.table]
     s3_client = get_s3_client()
     conn = get_pg_connection()
+    ensure_load_manifest(conn)
 
     if args.truncate:
         # TRUNCATE deletes all rows without logging individual row deletions
@@ -295,16 +430,41 @@ def main() -> None:
                 )
             )
         conn.commit()
+        clear_manifest_for_table(
+            conn,
+            table_name=args.table,
+            bucket=args.bucket,
+        )
 
     keys = list_ndjson_keys(s3_client, args.bucket, args.prefix)
+    loaded_keys = set()
+    if not args.reload_existing:
+        loaded_keys = list_loaded_keys(conn, args.table, args.bucket)
+        keys = filter_new_keys(keys, loaded_keys)
+        logger.info(
+            "filtered_loaded_keys",
+            table=args.table,
+            already_loaded=len(loaded_keys),
+            remaining=len(keys),
+        )
 
     if not keys:
-        logger.warning("no_files_found", prefix=args.prefix, bucket=args.bucket)
-        sys.exit(1)
+        if args.reload_existing:
+            logger.warning("no_files_found", prefix=args.prefix, bucket=args.bucket)
+            sys.exit(1)
+
+        logger.info(
+            "no_new_files_found",
+            prefix=args.prefix,
+            bucket=args.bucket,
+            table=args.table,
+        )
+        conn.close()
+        return
 
     total_rows = 0
     for key in keys:
-        total_rows += load_file(
+        row_count = load_file(
             s3_client,
             conn,
             args.bucket,
@@ -313,6 +473,14 @@ def main() -> None:
             column_map,
             args.sample_minutes,
         )
+        record_loaded_file(
+            conn,
+            table_name=args.table,
+            bucket=args.bucket,
+            key=key,
+            row_count=row_count,
+        )
+        total_rows += row_count
 
     conn.close()
     logger.info(
