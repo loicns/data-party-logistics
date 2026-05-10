@@ -1,64 +1,223 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Party Logistics — Port Operations Intelligence</title>
-    <meta name="description" content="Real-time port congestion tracking, vessel ETA prediction, and operational intelligence for maritime logistics.">
+    <meta name="description"
+        content="Real-time port congestion tracking, vessel ETA prediction, and operational intelligence for maritime logistics.">
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
 
-    <!-- Leaflet Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-
-<!-- ====== TOP NAVIGATION BAR ====== -->
-<header id="top-nav">
-    <div class="nav-left">
-        <div class="logo">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <rect width="28" height="28" rx="6" fill="#0ea5e9"/>
-                <path d="M7 14h14M14 7v14M9 9l10 10M19 9L9 19" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
-                <circle cx="14" cy="14" r="4" fill="#fff"/>
-            </svg>
-            <span class="logo-text">Data Party Logistics</span>
+    <header id="top-nav">
+        <div class="nav-left">
+            <div class="logo">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <rect width="28" height="28" rx="6" fill="#0ea5e9" />
+                    <path d="M7 14h14M14 7v14M9 9l10 10M19 9L9 19" stroke="#fff" stroke-width="1.5"
+                        stroke-linecap="round" opacity="0.6" />
+                    <circle cx="14" cy="14" r="4" fill="#fff" />
+                </svg>
+                <span class="logo-text">Data Party Logistics</span>
+            </div>
+            <span class="nav-divider"></span>
+            <span class="nav-subtitle">Port Operations Intelligence</span>
         </div>
-        <span class="nav-divider"></span>
-        <span class="nav-subtitle">Port Operations Intelligence</span>
-    </div>
-    <div class="nav-center">
-        <div class="port-selector" id="port-selector">
-            <button class="port-selector-btn" id="port-selector-btn">
-                <span class="port-flag" id="selected-port-flag">🇳🇱</span>
-                <span class="port-name" id="selected-port-name">Rotterdam</span>
-                <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"/></svg>
-            </button>
-            <div class="port-dropdown" id="port-dropdown"></div>
+        <div class="nav-center">
+            <div class="port-selector" id="port-selector">
+                <button class="port-selector-btn" id="port-selector-btn">
+                    <span class="port-flag" id="selected-port-flag">US</span>
+                    <span class="port-name" id="selected-port-name">Los Angeles</span>
+                    <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4 6l4 4 4-4" />
+                    </svg>
+                </button>
+                <div class="port-dropdown" id="port-dropdown"></div>
+            </div>
         </div>
-    </div>
-    <div class="nav-right">
-        <div class="live-indicator">
-            <span class="live-dot"></span>
-            <span>Live</span>
+        <div class="nav-right">
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>Live</span>
+            </div>
+            <span class="last-update" id="last-update">Updated unavailable</span>
         </div>
-        <span class="last-update" id="last-update">Updated 3 min ago</span>
-    </div>
-</header>
+    </header>
 
-<!-- ====== MAIN LAYOUT ====== -->
-<main id="app">
+    <nav id="view-nav" aria-label="Dashboard Views">
+        <button class="view-tab active" data-view="overview">Overview</button>
+        <button class="view-tab" data-view="map">Map</button>
+        <button class="view-tab" data-view="vessels">Vessels</button>
+        <button class="view-tab" data-view="sources">Sources</button>
+    </nav>
 
-    <!-- ====== LEFT: MAP PANEL ====== -->
-    <section class="map-panel" id="map-panel">
+    <main id="app">
+        <section class="view active" id="overview-view">
+            <div class="overview-grid">
+                <div class="overview-main">
+                    <div class="panel port-status-panel" id="port-status-panel">
+                        <div class="panel-header">
+                            <h2>Port Status <span class="time-label">Now</span></h2>
+                        </div>
+                        <div class="metric-cards" id="metric-cards"></div>
+                    </div>
+
+                    <div class="panel forecast-panel" id="forecast-panel">
+                        <div class="panel-header">
+                            <h2>Congestion Forecast</h2>
+                            <div class="forecast-legend">
+                                <span class="fl-item"><span class="fl-dot" style="background:#22c55e"></span>Low</span>
+                                <span class="fl-item"><span class="fl-dot" style="background:#f59e0b"></span>Medium</span>
+                                <span class="fl-item"><span class="fl-dot" style="background:#ef4444"></span>High</span>
+                            </div>
+                        </div>
+                        <div class="forecast-chart-wrapper">
+                            <canvas id="forecast-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel trends-panel" id="trends-panel">
+                        <div class="panel-header">
+                            <h2>Congestion Trend <span class="time-label">6 Days</span></h2>
+                        </div>
+                        <div class="trend-chart-wrapper">
+                            <canvas id="trend-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="overview-side">
+                    <div class="panel summary-panel">
+                        <div class="panel-header">
+                            <h2>Situation</h2>
+                        </div>
+                        <div class="summary-body">
+                            <div class="summary-kicker" id="summary-kicker">Monitoring current conditions</div>
+                            <div class="summary-headline" id="summary-headline">Port risk is low right now</div>
+                            <p class="summary-copy" id="summary-copy">
+                                Congestion, wave conditions, and tracked vessel counts are stable in the latest export.
+                            </p>
+                            <div class="summary-reasons" id="summary-reasons"></div>
+                        </div>
+                    </div>
+
+                    <div id="overview-map-slot" class="map-slot"></div>
+                </aside>
+            </div>
+
+            <div class="panel health-panel">
+                <div class="panel-header">
+                    <h2>Data Health</h2>
+                    <span class="sources-note" id="data-mode-label">warehouse export</span>
+                </div>
+                <div class="health-grid" id="health-grid"></div>
+            </div>
+        </section>
+
+        <section class="view" id="map-view">
+            <div class="map-view-grid">
+                <div id="map-view-slot" class="map-slot"></div>
+                <div class="panel map-insights-panel">
+                    <div class="panel-header">
+                        <h2>Map Notes</h2>
+                    </div>
+                    <div class="map-insights-body">
+                        <div class="insight-item">
+                            <span class="insight-label">Focus Port</span>
+                            <span class="insight-value" id="map-port-label">Los Angeles</span>
+                        </div>
+                        <div class="insight-item">
+                            <span class="insight-label">Displayed Radius</span>
+                            <span class="insight-value" id="map-radius-label">200nm</span>
+                        </div>
+                        <div class="insight-item">
+                            <span class="insight-label">Tracked Vessels</span>
+                            <span class="insight-value" id="map-tracked-label">0</span>
+                        </div>
+                        <p class="map-insights-copy">
+                            Use the radius controls to inspect how much inbound traffic is visible around the selected port.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="view" id="vessels-view">
+            <div class="panel vessels-panel" id="vessels-panel">
+                <div class="panel-header">
+                    <h2>Inbound Vessels</h2>
+                    <div class="vessel-count" id="vessel-count">0 vessels tracked</div>
+                </div>
+                <div class="empty-state" id="vessel-empty-state">
+                    <div class="empty-title">Vessel export is not wired yet</div>
+                    <div class="empty-copy">
+                        This view is ready for live AIS vessel rows. Once we export vessel records, this table becomes the operational queue.
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="vessels-table">
+                        <thead>
+                            <tr>
+                                <th>Vessel</th>
+                                <th>MMSI</th>
+                                <th>Zone</th>
+                                <th>Distance</th>
+                                <th>Speed</th>
+                                <th>ETA</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vessels-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="view" id="sources-view">
+            <div class="sources-view-grid">
+                <div class="panel sources-panel">
+                    <div class="panel-header">
+                        <h2>Prediction Data Sources</h2>
+                        <span class="sources-note">Transparency: what feeds the current view</span>
+                    </div>
+                    <div class="sources-grid" id="sources-grid"></div>
+                </div>
+                <div class="panel limitations-panel">
+                    <div class="panel-header">
+                        <h2>Coverage Notes</h2>
+                    </div>
+                    <div class="limitations-body">
+                        <div class="limit-item">
+                            <span class="limit-title">AIS coverage</span>
+                            <p>Near-port and coastal visibility is stronger than deep-ocean coverage.</p>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-title">Export mode</span>
+                            <p id="export-mode-copy">This page is currently powered by a warehouse export.</p>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-title">Interpretation</span>
+                            <p>Treat these panels as operational signals, not carrier-grade promises.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <section class="map-shell panel" id="map-shell">
         <div class="panel-header">
             <h2>Vessel Positions</h2>
             <div class="map-controls">
@@ -76,85 +235,8 @@
         </div>
     </section>
 
-    <!-- ====== RIGHT: DATA PANELS ====== -->
-    <section class="data-panels">
-
-        <!-- PORT STATUS NOW -->
-        <div class="panel port-status-panel" id="port-status-panel">
-            <div class="panel-header">
-                <h2>Port Status <span class="time-label">Now</span></h2>
-            </div>
-            <div class="metric-cards" id="metric-cards">
-                <!-- Populated by JS -->
-            </div>
-        </div>
-
-        <!-- CONGESTION FORECAST -->
-        <div class="panel forecast-panel" id="forecast-panel">
-            <div class="panel-header">
-                <h2>Congestion Forecast</h2>
-                <div class="forecast-legend">
-                    <span class="fl-item"><span class="fl-dot" style="background:#22c55e"></span>Low</span>
-                    <span class="fl-item"><span class="fl-dot" style="background:#f59e0b"></span>Medium</span>
-                    <span class="fl-item"><span class="fl-dot" style="background:#ef4444"></span>High</span>
-                </div>
-            </div>
-            <div class="forecast-chart-wrapper">
-                <canvas id="forecast-chart"></canvas>
-            </div>
-        </div>
-
-        <!-- INBOUND VESSELS TABLE -->
-        <div class="panel vessels-panel" id="vessels-panel">
-            <div class="panel-header">
-                <h2>Inbound Vessels</h2>
-                <div class="vessel-count" id="vessel-count">12 vessels tracked</div>
-            </div>
-            <div class="table-wrapper">
-                <table id="vessels-table">
-                    <thead>
-                        <tr>
-                            <th>Vessel</th>
-                            <th>MMSI</th>
-                            <th>Zone</th>
-                            <th>Distance</th>
-                            <th>Speed</th>
-                            <th>ETA</th>
-                            <th>Confidence</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vessels-tbody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- WEEKLY TRENDS -->
-        <div class="panel trends-panel" id="trends-panel">
-            <div class="panel-header">
-                <h2>Congestion Trend <span class="time-label">6 Weeks</span></h2>
-            </div>
-            <div class="trend-chart-wrapper">
-                <canvas id="trend-chart"></canvas>
-            </div>
-        </div>
-
-        <!-- DATA SOURCES -->
-        <div class="panel sources-panel" id="sources-panel">
-            <div class="panel-header">
-                <h2>Prediction Data Sources</h2>
-                <span class="sources-note">Transparency: what feeds our predictions</span>
-            </div>
-            <div class="sources-grid" id="sources-grid">
-                <!-- Populated by JS -->
-            </div>
-        </div>
-
-    </section>
-
-</main>
-
-<script src="app.js"></script>
+    <script src="demo-data.js"></script>
+    <script src="app.js"></script>
 </body>
+
 </html>
