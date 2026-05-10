@@ -40,23 +40,6 @@ Globals:
         ATHENA_OUTPUT_LOCATION: !Sub "s3://${DataBucket}/athena-results/"
         DASHBOARD_EXPORT_KEY: exports/dashboard/demo-data.js
         DASHBOARD_EXPORT_PREFIX: exports/dashboard/
-    Policies:
-      - S3CrudPolicy:
-          BucketName: !Ref DataBucket
-      - Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Action:
-              - athena:StartQueryExecution
-              - athena:GetQueryExecution
-              - athena:GetQueryResults
-              - glue:GetDatabase
-              - glue:GetDatabases
-              - glue:GetTable
-              - glue:GetTables
-              - glue:GetPartitions
-              - cloudwatch:PutMetricData
-            Resource: "*"
 
 Resources:
   DataBucket:
@@ -224,6 +207,25 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-ais-snapshot"
       Handler: serverless.handlers.ais_lambda.lambda_handler
       Timeout: 480
+      # SAM doesn't support `Policies` inside `Globals.Function`, so we keep the
+      # shared runtime permissions on each function instead.
+      Policies: &CommonFunctionPolicies
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
       Environment:
         Variables:
           AISSTREAM_API_KEY: !Ref AisStreamApiKey
@@ -241,6 +243,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-weather"
       Handler: serverless.handlers.weather_lambda.lambda_handler
+      Policies: *CommonFunctionPolicies
       Events:
         HourlyRun:
           Type: ScheduleV2
@@ -254,6 +257,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-noaa"
       Handler: serverless.handlers.noaa_lambda.lambda_handler
+      Policies: *CommonFunctionPolicies
       Events:
         DailyRun:
           Type: ScheduleV2
@@ -268,6 +272,7 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-export"
       Handler: serverless.handlers.export_lambda.lambda_handler
       Timeout: 300
+      Policies: *CommonFunctionPolicies
       Events:
         HourlyRun:
           Type: ScheduleV2
@@ -281,6 +286,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-freshness"
       Handler: serverless.handlers.freshness_lambda.lambda_handler
+      Policies: *CommonFunctionPolicies
       Events:
         ThirtyMinuteRun:
           Type: ScheduleV2
