@@ -1,0 +1,425 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Near-zero-cost AWS-only pilot for Data Party Logistics.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Optional email for SNS alerts.
+  AisStreamApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: AISStream API key for hourly AIS snapshots.
+  AisDurationSeconds:
+    Type: Number
+    Default: 300
+    MinValue: 300
+    MaxValue: 420
+    Description: Hourly AIS websocket capture window.
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+    CodeUri: .
+    MemorySize: 512
+    Timeout: 120
+    Handler: app.lambda_handler
+    Environment:
+      Variables:
+        AWS_REGION: !Ref AWS::Region
+        S3_BUCKET_RAW: !Ref DataBucket
+        DATA_BUCKET_NAME: !Ref DataBucket
+        ATHENA_DATABASE: dpl_pilot
+        ATHENA_OUTPUT_LOCATION: !Sub "s3://${DataBucket}/athena-results/"
+        DASHBOARD_EXPORT_KEY: exports/dashboard/demo-data.js
+        DASHBOARD_EXPORT_PREFIX: exports/dashboard/
+    Policies:
+      - S3CrudPolicy:
+          BucketName: !Ref DataBucket
+      - Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - athena:StartQueryExecution
+              - athena:GetQueryExecution
+              - athena:GetQueryResults
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetTables
+              - glue:GetPartitions
+              - cloudwatch:PutMetricData
+            Resource: "*"
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-${AWS::AccountId}-pilot-data"
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveRawAfter90Days
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 90
+                StorageClass: GLACIER
+            ExpirationInDays: 365
+
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-alerts"
+
+  AlertsSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      Endpoint: !Ref AlertEmail
+      Protocol: email
+      TopicArn: !Ref AlertsTopic
+
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: dpl_pilot
+        Description: Near-zero-cost pilot query layer for raw maritime data.
+
+  RawAisTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: raw_ais_positions
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: json
+          EXTERNAL: "TRUE"
+          projection.enabled: "true"
+          projection.date.type: date
+          projection.date.range: "2024-01-01,NOW"
+          projection.date.format: "yyyy-MM-dd"
+          projection.date.interval: "1"
+          projection.date.interval.unit: DAYS
+          storage.location.template:
+            Fn::Sub: "s3://${DataBucket}/raw/source=ais/date=${!date}/"
+        PartitionKeys:
+          - Name: date
+            Type: string
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucket}/raw/source=ais/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: mmsi, Type: bigint }
+            - { Name: ship_name, Type: string }
+            - { Name: lat, Type: double }
+            - { Name: lon, Type: double }
+            - { Name: sog, Type: double }
+            - { Name: cog, Type: double }
+            - { Name: true_heading, Type: int }
+            - { Name: nav_status, Type: int }
+            - { Name: msg_type, Type: string }
+            - { Name: received_at, Type: string }
+
+  RawWeatherTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: raw_weather_observations
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: json
+          EXTERNAL: "TRUE"
+          projection.enabled: "true"
+          projection.date.type: date
+          projection.date.range: "2024-01-01,NOW"
+          projection.date.format: "yyyy-MM-dd"
+          projection.date.interval: "1"
+          projection.date.interval.unit: DAYS
+          storage.location.template:
+            Fn::Sub: "s3://${DataBucket}/raw/source=weather/date=${!date}/"
+        PartitionKeys:
+          - Name: date
+            Type: string
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucket}/raw/source=weather/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: port_code, Type: string }
+            - { Name: timestamp, Type: string }
+            - { Name: wave_height_m, Type: double }
+            - { Name: wave_direction_deg, Type: double }
+            - { Name: wave_period_s, Type: double }
+            - { Name: wind_wave_height_m, Type: double }
+            - { Name: swell_wave_height_m, Type: double }
+
+  RawNoaaTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: raw_noaa_tides
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: json
+          EXTERNAL: "TRUE"
+          projection.enabled: "true"
+          projection.date.type: date
+          projection.date.range: "2024-01-01,NOW"
+          projection.date.format: "yyyy-MM-dd"
+          projection.date.interval: "1"
+          projection.date.interval.unit: DAYS
+          storage.location.template:
+            Fn::Sub: "s3://${DataBucket}/raw/source=noaa_tides/date=${!date}/"
+        PartitionKeys:
+          - Name: date
+            Type: string
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucket}/raw/source=noaa_tides/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: port_code, Type: string }
+            - { Name: station_id, Type: string }
+            - { Name: timestamp, Type: string }
+            - { Name: tide_level_m, Type: double }
+            - { Name: tide_type, Type: string }
+
+  AthenaWorkgroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}-pilot"
+      State: ENABLED
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${DataBucket}/athena-results/"
+
+  AisSnapshotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-ais-snapshot"
+      Handler: serverless.handlers.ais_lambda.lambda_handler
+      Timeout: 480
+      Environment:
+        Variables:
+          AISSTREAM_API_KEY: !Ref AisStreamApiKey
+          AIS_DURATION_SECONDS: !Ref AisDurationSeconds
+      Events:
+        HourlyRun:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: rate(1 hour)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  WeatherIngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-weather"
+      Handler: serverless.handlers.weather_lambda.lambda_handler
+      Events:
+        HourlyRun:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(10 * * * ? *)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  NoaaIngestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-noaa"
+      Handler: serverless.handlers.noaa_lambda.lambda_handler
+      Events:
+        DailyRun:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(20 1 * * ? *)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  DashboardExportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-export"
+      Handler: serverless.handlers.export_lambda.lambda_handler
+      Timeout: 300
+      Events:
+        HourlyRun:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(25 * * * ? *)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  FreshnessCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-freshness"
+      Handler: serverless.handlers.freshness_lambda.lambda_handler
+      Events:
+        ThirtyMinuteRun:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: rate(30 minutes)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  ObservabilityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-pilot"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Lambda Errors",
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${AisSnapshotFunction}" ],
+                  [ ".", ".", ".", "${WeatherIngestionFunction}" ],
+                  [ ".", ".", ".", "${NoaaIngestionFunction}" ],
+                  [ ".", ".", ".", "${DashboardExportFunction}" ],
+                  [ ".", ".", ".", "${FreshnessCheckFunction}" ]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Pilot Freshness (minutes)",
+                "view": "timeSeries",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "DPL/Pilot", "AisFreshnessMinutes" ],
+                  [ ".", "WeatherFreshnessMinutes" ],
+                  [ ".", "NoaaFreshnessMinutes" ],
+                  [ ".", "ExportFreshnessMinutes" ]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Data Landing Metrics",
+                "view": "timeSeries",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  [ "DPL/Pilot", "AisFilesWritten" ],
+                  [ ".", "WeatherRecordsWritten" ],
+                  [ ".", "NoaaFilesWritten" ],
+                  [ ".", "ExportArtifactWritten" ]
+                ]
+              }
+            }
+          ]
+        }
+
+  AisFreshnessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-ais-freshness"
+      Namespace: DPL/Pilot
+      MetricName: AisFreshnessMinutes
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 90
+      EvaluationPeriods: 1
+      Period: 1800
+      Statistic: Maximum
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  ExportFreshnessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-export-freshness"
+      Namespace: DPL/Pilot
+      MetricName: ExportFreshnessMinutes
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 120
+      EvaluationPeriods: 1
+      Period: 1800
+      Statistic: Maximum
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  AisFilesWrittenAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-ais-zero-files"
+      Namespace: DPL/Pilot
+      MetricName: AisFilesWritten
+      ComparisonOperator: LessThanThreshold
+      Threshold: 1
+      EvaluationPeriods: 1
+      Period: 3600
+      Statistic: Sum
+      TreatMissingData: breaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  ExportErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-export-errors"
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref DashboardExportFunction
+      ComparisonOperator: GreaterThanThreshold
+      Threshold: 0
+      EvaluationPeriods: 1
+      Period: 3600
+      Statistic: Sum
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+Outputs:
+  DataBucketName:
+    Value: !Ref DataBucket
+  DashboardArtifactS3Uri:
+    Value: !Sub "s3://${DataBucket}/exports/dashboard/demo-data.js"
+  AthenaDatabase:
+    Value: dpl_pilot
+  AthenaWorkgroupName:
+    Value: !Ref AthenaWorkgroup
+  CloudWatchDashboardName:
+    Value: !Ref ObservabilityDashboard

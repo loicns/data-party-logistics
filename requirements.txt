@@ -1,0 +1,7 @@
+boto3>=1.35
+httpx>=0.28
+websockets>=14.0
+pydantic>=2.10
+python-dotenv>=1.2.2
+structlog>=24.4
+tenacity>=9.1.4
