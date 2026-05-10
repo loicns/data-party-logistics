@@ -166,6 +166,7 @@ class RecordBuffer:
         self._records: list[dict[str, Any]] = []  # In-memory list of flat record dicts
         self._source = source  # S3 partition: raw/source={source}/...
         self._total_flushed = 0  # Cumulative counter for monitoring
+        self._files_written = 0
 
     def add(self, record: dict[str, Any]) -> None:
         """Append a record to the buffer."""
@@ -196,6 +197,7 @@ class RecordBuffer:
         try:
             key = write_ndjson_batch(batch, source=self._source)  # Write to S3
             self._total_flushed += len(batch)
+            self._files_written += 1
             logger.info(
                 "batch_flushed",
                 key=key,
@@ -211,6 +213,14 @@ class RecordBuffer:
             logger.exception("flush_failed", batch_size=len(batch))
             return 0
 
+    @property
+    def total_flushed(self) -> int:
+        return self._total_flushed
+
+    @property
+    def files_written(self) -> int:
+        return self._files_written
+
 
 # ---------------------------------------------------------------------------
 # Main consumer loop
@@ -219,7 +229,7 @@ class RecordBuffer:
 
 async def consume(
     shutdown_event: asyncio.Event, max_duration_seconds: int = 300
-) -> None:
+) -> dict[str, int]:
     """Connect to AISStream and consume messages until shutdown.
 
     ASYNC ARCHITECTURE:
@@ -233,7 +243,7 @@ async def consume(
     api_key = settings.aisstream_api_key  # Read from Settings (loaded from .env)
     if not api_key:
         logger.error("missing_api_key", hint="Set AISSTREAM_API_KEY in .env")
-        return
+        return {"records_written": 0, "files_written": 0}
 
     # AISStream subscription message — tells the server what to send
     subscribe_msg = json.dumps(
@@ -248,6 +258,8 @@ async def consume(
     )
 
     buffer = RecordBuffer()  # Single buffer shared between message loop and flush task
+    records_received = 0
+    result = {"records_received": 0, "records_written": 0, "files_written": 0}
 
     async def periodic_flush() -> None:
         """Flush buffer to S3 every FLUSH_INTERVAL_SEC seconds.
@@ -294,6 +306,7 @@ async def consume(
                         )  # Validate schema with Pydantic
                         record = msg.to_record()  # Flatten to dict
                         buffer.add(record)  # Add to in-memory buffer
+                        records_received += 1
 
                         # Log every 500 records to avoid log spam in production
                         if buffer.size % 500 == 0:
@@ -321,6 +334,12 @@ async def consume(
         watchdog_task.cancel()
         flushed = buffer.flush()
         logger.info("final_flush", records_flushed=flushed)
+        result = {
+            "records_received": records_received,
+            "records_written": buffer.total_flushed,
+            "files_written": buffer.files_written,
+        }
+    return result
 
 
 # ---------------------------------------------------------------------------
