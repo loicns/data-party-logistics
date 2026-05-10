@@ -105,7 +105,7 @@ current_positions AS (
 with_distance AS (
     SELECT
         mmsi,
-        vessel_name,
+        ship_name,
         lat,
         lon,
         sog,
@@ -146,7 +146,7 @@ WITH daily_positions AS (
     SELECT
         date,
         mmsi,
-        max_by(vessel_name, from_iso8601_timestamp(received_at)) AS vessel_name,
+        max_by(ship_name, from_iso8601_timestamp(received_at)) AS ship_name,
         max_by(lat, from_iso8601_timestamp(received_at)) AS lat,
         max_by(lon, from_iso8601_timestamp(received_at)) AS lon,
         max_by(sog, from_iso8601_timestamp(received_at)) AS sog,
@@ -216,7 +216,7 @@ current_positions AS (
 with_distance AS (
     SELECT
         mmsi,
-        vessel_name,
+        ship_name,
         lat,
         lon,
         sog,
@@ -232,7 +232,7 @@ with_distance AS (
 )
 SELECT
     mmsi,
-    vessel_name,
+    ship_name,
     lat,
     lon,
     sog,
@@ -245,8 +245,8 @@ LIMIT 12
 """
 
 
-def _zone(distance_nm: float, speed_knots: float, nav_status: str | None) -> str:
-    status = (nav_status or "").lower()
+def _zone(distance_nm: float, speed_knots: float, nav_status: Any) -> str:
+    status = str(nav_status or "").lower()
     if "5" in status or "moored" in status:
         return "berth"
     if "1" in status or "anchor" in status or speed_knots <= 1.0:
@@ -350,7 +350,7 @@ def _build_port_payload(
         zone = _zone(distance_nm, speed_knots, row.get("nav_status"))
         vessels.append(
             {
-                "name": row.get("vessel_name") or f"MMSI {row.get('mmsi')}",
+                "name": row.get("ship_name") or f"MMSI {row.get('mmsi')}",
                 "mmsi": str(row.get("mmsi") or ""),
                 "lat": round(_safe_float(row.get("lat")), 4),
                 "lon": round(_safe_float(row.get("lon")), 4),
