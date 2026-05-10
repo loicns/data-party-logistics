@@ -63,6 +63,12 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Pipeline Explorer: pipeline-explorer.md
+  - Product:
+      - Product PRD: 07-product-prd.md
+      - Current State Audit: 08-current-state-audit.md
+      - Next Week Demo Calendar: 09-next-week-demo-calendar.md
+      - Serverless Pilot: 12-serverless-pilot.md
+      - Serverless Status And Cost Forecast: 13-serverless-status-and-costs.md
   - Architecture:
       - Problem Framing: 01-problem-framing.md
       - Data Sources: 02-data-sources.md

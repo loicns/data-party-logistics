@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DPL Serverless Pilot Mission Control</title>
+  <style>
+    :root {
+      --bg: #07111d;
+      --bg-soft: #0d1828;
+      --panel: rgba(13, 24, 40, 0.92);
+      --panel-2: rgba(19, 32, 51, 0.96);
+      --panel-3: rgba(10, 17, 29, 0.94);
+      --line: rgba(148, 163, 184, 0.14);
+      --text: #ebf2fb;
+      --muted: #92a2bc;
+      --active: #53c7ff;
+      --active-soft: rgba(83, 199, 255, 0.16);
+      --success: #39d98a;
+      --success-soft: rgba(57, 217, 138, 0.15);
+      --warning: #ffbf5a;
+      --warning-soft: rgba(255, 191, 90, 0.15);
+      --danger: #ff7b7b;
+      --danger-soft: rgba(255, 123, 123, 0.14);
+      --locked: #8fa0bc;
+      --locked-soft: rgba(143, 160, 188, 0.12);
+      --violet: #9badff;
+      --radius: 20px;
+      --radius-sm: 14px;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+      --max: 1360px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(83, 199, 255, 0.14), transparent 26%),
+        radial-gradient(circle at 100% 0%, rgba(155, 173, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, #07111d 0%, #091320 100%);
+    }
+
+    a {
+      color: var(--active);
+      text-decoration: none;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      backdrop-filter: blur(18px);
+      background: rgba(7, 17, 29, 0.82);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .progress-rail {
+      height: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--active) 0%, var(--success) 100%);
+      box-shadow: 0 0 18px rgba(83, 199, 255, 0.55);
+      transition: width 220ms ease;
+    }
+
+    .topbar-inner {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 14px 20px 16px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #49d0ff 0%, #7c96ff 100%);
+      color: #07111d;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 10px 30px rgba(83, 199, 255, 0.28);
+    }
+
+    .brand-copy strong,
+    .brand-copy span {
+      display: block;
+    }
+
+    .brand-copy strong {
+      font-size: 15px;
+      letter-spacing: 0.01em;
+    }
+
+    .brand-copy span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mission-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-width: 0;
+      padding: 11px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(83, 199, 255, 0.18);
+      background: linear-gradient(180deg, rgba(83, 199, 255, 0.12), rgba(83, 199, 255, 0.04));
+    }
+
+    .mission-kicker {
+      flex: 0 0 auto;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--active);
+    }
+
+    .mission-text {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .mission-count {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .nav a {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .nav a:hover,
+    .nav a:focus-visible {
+      border-color: rgba(83, 199, 255, 0.35);
+      color: var(--text);
+      outline: none;
+    }
+
+    .shell {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    .card {
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(16, 27, 45, 0.95), rgba(10, 17, 29, 0.98));
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.3fr 0.92fr;
+      gap: 20px;
+      align-items: stretch;
+      margin-top: 18px;
+    }
+
+    .hero-main {
+      position: relative;
+      overflow: hidden;
+      padding: 28px;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      right: -50px;
+      bottom: -70px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(83, 199, 255, 0.24), transparent 64%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: var(--active);
+      background: var(--active-soft);
+      border: 1px solid rgba(83, 199, 255, 0.16);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(2.2rem, 4vw, 3.7rem);
+      line-height: 1;
+      letter-spacing: -0.045em;
+      max-width: 12ch;
+    }
+
+    .lede {
+      max-width: 66ch;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .hero-points {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .point {
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .point strong,
+    .status-box strong,
+    .task-title,
+    .mile-summary strong {
+      display: block;
+    }
+
+    .point strong {
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .point span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .hero-side {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .current-mission,
+    .cost-total,
+    .status-panel {
+      padding: 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .current-mission {
+      background: linear-gradient(180deg, rgba(255, 191, 90, 0.15), rgba(255, 191, 90, 0.04));
+      border-color: rgba(255, 191, 90, 0.22);
+    }
+
+    .mission-label,
+    .mini-label,
+    .section-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .mission-label {
+      color: var(--warning);
+      background: rgba(255, 191, 90, 0.12);
+    }
+
+    .current-mission h2,
+    .cost-total h2,
+    .status-panel h3,
+    .section h2 {
+      margin: 12px 0 0;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .current-mission p,
+    .status-panel p,
+    .cost-note,
+    .section-head p,
+    .mile-summary p,
+    .task-copy,
+    .cost-control-note,
+    .footer-note {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .current-mission p {
+      margin: 10px 0 0;
+      font-size: 14px;
+    }
+
+    .cost-total {
+      background: linear-gradient(180deg, rgba(83, 199, 255, 0.16), rgba(83, 199, 255, 0.04));
+      border-color: rgba(83, 199, 255, 0.18);
+    }
+
+    .cost-range {
+      margin-top: 10px;
+      font-size: clamp(2rem, 3.5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -0.06em;
+      color: var(--active);
+    }
+
+    .cost-range span {
+      margin-left: 8px;
+      font-size: 18px;
+      color: var(--text);
+      letter-spacing: 0;
+    }
+
+    .cost-note {
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .status-box {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .status-box strong {
+      font-size: 28px;
+      margin-bottom: 4px;
+    }
+
+    .status-box span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .done strong {
+      color: var(--success);
+    }
+
+    .todo strong {
+      color: var(--warning);
+    }
+
+    .section {
+      margin-top: 24px;
+      padding: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .section-head p {
+      margin: 6px 0 0;
+      max-width: 74ch;
+      font-size: 14px;
+    }
+
+    .section-tag {
+      white-space: nowrap;
+      color: var(--violet);
+      background: rgba(155, 173, 255, 0.13);
+      border: 1px solid rgba(155, 173, 255, 0.16);
+    }
+
+    .mini-label {
+      color: var(--active);
+      background: rgba(83, 199, 255, 0.12);
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .check-card {
+      padding: 18px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--panel-2);
+    }
+
+    .check-card h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .check-card p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+      font-size: 13px;
+      line-height: 1.55;
+      transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+    }
+
+    .item input {
+      margin-top: 2px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--active);
+      flex: 0 0 auto;
+    }
+
+    .item strong {
+      color: var(--text);
+    }
+
+    .item.is-checked {
+      border-color: rgba(57, 217, 138, 0.22);
+      background: rgba(57, 217, 138, 0.07);
+    }
+
+    .item.is-checked span {
+      color: #b7c8dc;
+    }
+
+    .tooltip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin-left: 4px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.02);
+      font-size: 11px;
+      font-weight: 900;
+      cursor: help;
+    }
+
+    .tooltip::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 10px);
+      transform: translateX(-50%);
+      width: 220px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(7, 17, 29, 0.96);
+      box-shadow: 0 18px 32px rgba(0, 0, 0, 0.35);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .tooltip:hover::after,
+    .tooltip:focus-visible::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+      position: relative;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      bottom: 18px;
+      width: 2px;
+      background: linear-gradient(180deg, rgba(83, 199, 255, 0.42), rgba(155, 173, 255, 0.12));
+    }
+
+    .mile {
+      position: relative;
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .mile-mark {
+      position: relative;
+      z-index: 1;
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #50d0ff 0%, #9badff 100%);
+      color: #07111d;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 10px 24px rgba(83, 199, 255, 0.24);
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .mile-mark:hover,
+    .mile-mark:focus-visible {
+      transform: translateY(-2px);
+      outline: none;
+      box-shadow: 0 14px 28px rgba(83, 199, 255, 0.34);
+    }
+
+    .mile-body {
+      padding: 18px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--panel-2);
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .mile.ready .mile-body {
+      border-color: rgba(57, 217, 138, 0.26);
+      box-shadow: 0 0 0 1px rgba(57, 217, 138, 0.08), 0 0 28px rgba(57, 217, 138, 0.12);
+      background: linear-gradient(180deg, rgba(57, 217, 138, 0.08), rgba(19, 32, 51, 0.95));
+    }
+
+    .mile.ready .mile-mark {
+      background: linear-gradient(135deg, #3adf8f 0%, #89f0bc 100%);
+      box-shadow: 0 12px 30px rgba(57, 217, 138, 0.26);
+    }
+
+    .mile-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .chip.done {
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .chip.next {
+      color: var(--warning);
+      background: var(--warning-soft);
+    }
+
+    .chip.later {
+      color: var(--violet);
+      background: rgba(155, 173, 255, 0.14);
+    }
+
+    .chip.ready {
+      color: var(--success);
+      background: var(--success-soft);
+      display: none;
+    }
+
+    .mile.ready .chip.ready {
+      display: inline-flex;
+    }
+
+    .mile-body h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      letter-spacing: -0.02em;
+    }
+
+    .collapsible {
+      margin-top: 10px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .mile-summary p,
+    .task-copy {
+      margin: 8px 0 0;
+      font-size: 14px;
+    }
+
+    .toggle-btn {
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .toggle-btn:hover,
+    .toggle-btn:focus-visible {
+      border-color: rgba(83, 199, 255, 0.3);
+      outline: none;
+    }
+
+    .detail-panel {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .detail-panel.is-open {
+      display: block;
+    }
+
+    .flat-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .task-columns {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .task-column {
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--panel-2);
+    }
+
+    .task-head {
+      padding: 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .task-head strong {
+      display: block;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .task-head span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .task-list {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .task {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .task:hover {
+      transform: translateY(-1px);
+      border-color: rgba(83, 199, 255, 0.2);
+    }
+
+    .task-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      justify-content: space-between;
+    }
+
+    .task-title {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .task-summary {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .task-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .task-check input {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--success);
+    }
+
+    .status-tag {
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--locked);
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .status-tag[data-status="idle"] {
+      color: var(--locked);
+      background: var(--locked-soft);
+    }
+
+    .status-tag[data-status="in-progress"] {
+      color: var(--warning);
+      background: var(--warning-soft);
+    }
+
+    .status-tag[data-status="done"] {
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .task.is-done {
+      border-color: rgba(57, 217, 138, 0.2);
+      background: linear-gradient(180deg, rgba(57, 217, 138, 0.07), rgba(255, 255, 255, 0.03));
+    }
+
+    .task.is-done .task-title {
+      color: #c6f5db;
+    }
+
+    .task.is-in-progress {
+      border-color: rgba(255, 191, 90, 0.2);
+      box-shadow: 0 0 0 1px rgba(255, 191, 90, 0.06);
+    }
+
+    .task-actions {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .task-map {
+      color: var(--active);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .task-group-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .task-group-toggle:hover,
+    .task-group-toggle:focus-visible {
+      border-color: rgba(83, 199, 255, 0.3);
+      outline: none;
+    }
+
+    .cost-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .cost-controls {
+      display: grid;
+      gap: 12px;
+      justify-items: end;
+      min-width: 280px;
+    }
+
+    .cost-toggles {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .toggle-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .toggle-pill input {
+      margin: 0;
+      accent-color: var(--danger);
+    }
+
+    .toggle-pill:has(input:checked) {
+      border-color: rgba(255, 123, 123, 0.24);
+      background: rgba(255, 123, 123, 0.1);
+      color: var(--text);
+    }
+
+    .cost-control-note {
+      margin: 0;
+      font-size: 12px;
+      text-align: right;
+      max-width: 34ch;
+    }
+
+    .cost-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: var(--radius-sm);
+      background: var(--panel-2);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .cost-table th,
+    .cost-table td {
+      padding: 14px 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .cost-table th {
+      color: var(--text);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .cost-table td {
+      color: var(--muted);
+    }
+
+    .cost-table td strong {
+      color: var(--text);
+    }
+
+    .total-row td {
+      font-weight: 700;
+    }
+
+    .budget-signal {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .budget-signal strong {
+      font-size: 14px;
+    }
+
+    .budget-state {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .budget-state.good {
+      color: var(--success);
+    }
+
+    .budget-state.warn {
+      color: var(--warning);
+    }
+
+    .budget-state.bad {
+      color: var(--danger);
+    }
+
+    .warning-zone {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .warning-zone::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 1px rgba(255, 191, 90, 0.08);
+    }
+
+    .warning-zone .section-tag {
+      color: var(--warning);
+      background: rgba(255, 191, 90, 0.12);
+      border-color: rgba(255, 191, 90, 0.18);
+    }
+
+    .warning-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .warning {
+      padding: 18px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: var(--panel-2);
+    }
+
+    .warning.risk {
+      border-color: rgba(255, 191, 90, 0.2);
+      background:
+        linear-gradient(180deg, rgba(255, 191, 90, 0.09), rgba(255, 191, 90, 0.02)),
+        rgba(19, 32, 51, 0.96);
+      animation: pulseBorder 3s ease-in-out infinite;
+    }
+
+    .warning.guard {
+      border-color: rgba(255, 191, 90, 0.16);
+    }
+
+    .warning.ok {
+      border-color: rgba(57, 217, 138, 0.18);
+    }
+
+    @keyframes pulseBorder {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 191, 90, 0.08);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(255, 191, 90, 0.02);
+      }
+    }
+
+    .warning h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+
+    .warning p,
+    .warning ul {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .warning ul {
+      padding-left: 18px;
+    }
+
+    .footer-note {
+      margin-top: 20px;
+      padding: 18px 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 13px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #dbe9ff;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 1200px) {
+      .hero,
+      .check-grid,
+      .task-columns,
+      .warning-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-points,
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cost-head {
+        flex-direction: column;
+      }
+
+      .cost-controls {
+        justify-items: start;
+        min-width: 0;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .topbar-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .mission-strip,
+      .nav {
+        justify-content: flex-start;
+      }
+
+      .summary-row,
+      .task-top,
+      .task-actions,
+      .budget-signal {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        padding: 18px 14px 70px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .section {
+        padding: 18px;
+      }
+
+      .nav {
+        gap: 8px;
+      }
+
+      .nav a,
+      .toggle-pill,
+      .task-group-toggle,
+      .toggle-btn {
+        font-size: 11px;
+      }
+
+      h1 {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="progress-rail" aria-hidden="true">
+      <div class="progress-fill" id="global-progress"></div>
+    </div>
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">DPL</div>
+        <div class="brand-copy">
+          <strong>Serverless Pilot Mission Control</strong>
+          <span>Action-first roadmap for the AWS-only pilot</span>
+        </div>
+      </div>
+      <div class="mission-strip" aria-live="polite">
+        <span class="mission-kicker">Current Mission</span>
+        <span class="mission-text" id="mission-strip-text">Load page state</span>
+        <span class="mission-count" id="mission-strip-count">0/0</span>
+      </div>
+      <nav class="nav">
+        <a href="#snapshot">Snapshot</a>
+        <a href="#checks">Checks</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#tasks">Tasks</a>
+        <a href="#costs">Costs</a>
+        <a href="#risks">Risks</a>
+      </nav>
+    </div>
+  </div>
+
+  <main class="shell">
+    <section class="hero" id="snapshot">
+      <div class="card hero-main">
+        <div class="eyebrow">Useful At A Glance</div>
+        <h1>Ship the pilot without drifting into a bigger cloud bill.</h1>
+        <p class="lede">
+          This page is now an operator surface, not a passive memo. It tells you what the next
+          job is, remembers your progress after refresh, and lets you collapse the deeper specs
+          until you actually need them.
+        </p>
+        <div class="hero-points">
+          <div class="point">
+            <strong>Architecture</strong>
+            <span>Lambda + EventBridge + S3 + Glue/Athena + CloudWatch + SNS + GitHub Actions.</span>
+          </div>
+          <div class="point">
+            <strong>Pilot Scope</strong>
+            <span>Three ports only, hourly AIS snapshots, static export artifact, no always-on runtime.</span>
+          </div>
+          <div class="point">
+            <strong>Decision Rule</strong>
+            <span>Protect cost discipline first. If a change adds RDS, Fargate, or a <span class="tooltip" tabindex="0" data-tip="A NAT Gateway is a managed outbound network component that adds a steady monthly charge even when traffic is light. It is one of the fastest ways to blow up a low-cost pilot budget.">i</span> NAT Gateway, stop and re-evaluate.</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="card hero-side">
+        <div class="current-mission">
+          <span class="mission-label">Start Here</span>
+          <h2 id="current-mission-title">Preparing mission state...</h2>
+          <p id="current-mission-copy">The first uncompleted milestone will appear here automatically.</p>
+        </div>
+
+        <div class="cost-total">
+          <h2>Total planning budget</h2>
+          <div class="cost-range" id="hero-cost-range">$5–15<span>/ month</span></div>
+          <div class="cost-note" id="hero-cost-note">
+            Best-case target stays around <strong>$1–8/month</strong>. Keep the stack serverless-only
+            and this remains a credible planning envelope.
+          </div>
+        </div>
+
+        <div class="status-panel">
+          <span class="mini-label">Progress Snapshot</span>
+          <div class="status-grid">
+            <div class="status-box done">
+              <strong id="completed-count">0</strong>
+              <span>tasks and checkpoints completed</span>
+            </div>
+            <div class="status-box todo">
+              <strong id="remaining-count">0</strong>
+              <span>remaining items before all visible work is done</span>
+            </div>
+          </div>
+          <p id="status-copy">Progress updates after every checklist or task change.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="card section" id="checks">
+      <div class="section-head">
+        <div>
+          <h2>Immediate Action Checklist</h2>
+          <p>These are the first checks between “implemented in repo” and “safe to deploy”. They are global operator checks, not track-specific engineering tasks.</p>
+        </div>
+        <div class="section-tag">Check Before Go-Live</div>
+      </div>
+
+      <div class="check-grid">
+        <div class="check-card" id="track-a">
+          <h3>AWS account and IAM</h3>
+          <p>Make the deployment path safe, cheap, and consistent before the first workflow run.</p>
+          <div class="checklist">
+            <label class="item"><input data-check-id="check-deploy-role" type="checkbox" /><span><strong>Deployment role exists</strong> for GitHub Actions with CloudFormation, Lambda, S3, Glue, Athena, CloudWatch, and <span class="tooltip" tabindex="0" data-tip="IAM controls which AWS actions the GitHub deploy role can perform. Least-privilege matters here because this role can create or modify your stack.">i</span> IAM permissions scoped tightly enough for the pilot.</span></label>
+            <label class="item"><input data-check-id="check-no-nat" type="checkbox" /><span><strong>No NAT Gateway</strong> is introduced anywhere in the stack.</span></label>
+            <label class="item"><input data-check-id="check-region" type="checkbox" /><span><strong>Region is fixed</strong> to <code>eu-west-3</code> so pricing assumptions stay consistent.</span></label>
+            <label class="item"><input data-check-id="check-sns" type="checkbox" /><span><strong>SNS topic policy</strong> is acceptable for email alerts and not blocked by account defaults.</span></label>
+          </div>
+        </div>
+
+        <div class="check-card" id="track-b">
+          <h3>GitHub and secrets</h3>
+          <p>Make sure the browser-first deployment path can actually run without local machine dependencies.</p>
+          <div class="checklist">
+            <label class="item"><input data-check-id="check-role-secret" type="checkbox" /><span><strong><code>AWS_DEPLOY_ROLE_ARN</code></strong> added to GitHub Actions secrets.</span></label>
+            <label class="item"><input data-check-id="check-ais-secret" type="checkbox" /><span><strong><code>AISSTREAM_API_KEY</code></strong> added to GitHub Actions secrets.</span></label>
+            <label class="item"><input data-check-id="check-alert-secret" type="checkbox" /><span><strong><code>DPL_ALERT_EMAIL</code></strong> added if you want live email alarms on day one.</span></label>
+            <label class="item"><input data-check-id="check-workflow-review" type="checkbox" /><span><strong>Deployment workflow reviewed</strong> in <code>.github/workflows/deploy-serverless.yml</code>.</span></label>
+          </div>
+        </div>
+
+        <div class="check-card" id="track-c">
+          <h3>Runtime validation</h3>
+          <p>Confirm the serverless path still behaves like the intended product, not just a cheap architecture demo.</p>
+          <div class="checklist">
+            <label class="item"><input data-check-id="check-template" type="checkbox" /><span><strong>CloudFormation template validates</strong> and the SAM stack can deploy cleanly.</span></label>
+            <label class="item"><input data-check-id="check-ais-window" type="checkbox" /><span><strong>AIS Lambda duration</strong> stays within the planned 300–420 second window.</span></label>
+            <label class="item"><input data-check-id="check-athena-export" type="checkbox" /><span><strong>Athena export path</strong> can read landed S3 JSON and write <code>demo-data.js</code> with acceptable query cost.</span></label>
+            <label class="item"><input data-check-id="check-dashboard" type="checkbox" /><span><strong>CloudWatch dashboard panels</strong> populate after one full cycle, including freshness and export health.</span></label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card section" id="roadmap">
+      <div class="section-head">
+        <div>
+          <h2>Roadmap Milestones</h2>
+          <p>Each milestone is a deployable or observable outcome. The milestone chips and ready state update automatically as the mapped tasks below move to done.</p>
+        </div>
+        <div class="section-tag">Milestones</div>
+      </div>
+
+      <div class="timeline">
+        <article class="mile ready" data-mile-id="m1" data-track-target="track-a">
+          <button class="mile-mark" type="button" data-scroll-target="track-a" aria-label="Jump to Track A">M1</button>
+          <div class="mile-body">
+            <div class="mile-meta">
+              <span class="chip done">Built</span>
+              <span class="chip done">Repo Complete</span>
+              <span class="chip ready">Ready</span>
+            </div>
+            <h3>Serverless pilot architecture committed</h3>
+            <div class="collapsible">
+              <div class="summary-row">
+                <div class="mile-summary">
+                  <strong>Already finished</strong>
+                  <p>The runtime fork, serverless handlers, stack template, monitoring scaffolding, and export path are already in the repo.</p>
+                </div>
+                <button class="toggle-btn" type="button" data-toggle-target="mile-detail-m1">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="mile-detail-m1">
+                <ul class="flat-list">
+                  <li><code>template.yaml</code> provisions the low-cost stack.</li>
+                  <li><code>serverless/handlers</code> implements the scheduled Lambda entrypoints.</li>
+                  <li>The export path no longer depends on the pilot runtime using Postgres.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mile" data-mile-id="m2" data-track-target="track-a">
+          <button class="mile-mark" type="button" data-scroll-target="track-a" aria-label="Jump to Track A">M2</button>
+          <div class="mile-body">
+            <div class="mile-meta">
+              <span class="chip next">Next</span>
+              <span class="chip next">Manual</span>
+              <span class="chip ready">Ready</span>
+            </div>
+            <h3>AWS deployment identity and GitHub secrets ready</h3>
+            <div class="collapsible">
+              <div class="summary-row">
+                <div class="mile-summary">
+                  <strong>Primary gate</strong>
+                  <p>Until the deploy role and secrets exist, the pilot is code-complete but not cloud-executable.</p>
+                </div>
+                <button class="toggle-btn" type="button" data-toggle-target="mile-detail-m2">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="mile-detail-m2">
+                <ul class="flat-list">
+                  <li>Create the GitHub deploy role using OIDC, not long-lived AWS keys.</li>
+                  <li>Add AWS and AISStream secrets to GitHub.</li>
+                  <li>Decide whether to wire SNS email immediately or after first deployment.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mile" data-mile-id="m3" data-track-target="track-b">
+          <button class="mile-mark" type="button" data-scroll-target="track-b" aria-label="Jump to Track B">M3</button>
+          <div class="mile-body">
+            <div class="mile-meta">
+              <span class="chip next">Deploy</span>
+              <span class="chip next">First Run</span>
+              <span class="chip ready">Ready</span>
+            </div>
+            <h3>First stack deployment succeeds</h3>
+            <div class="collapsible">
+              <div class="summary-row">
+                <div class="mile-summary">
+                  <strong>Cloud creation milestone</strong>
+                  <p>The stack is only real once GitHub Actions deploys the SAM application and AWS creates the resources without manual cleanup.</p>
+                </div>
+                <button class="toggle-btn" type="button" data-toggle-target="mile-detail-m3">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="mile-detail-m3">
+                <ul class="flat-list">
+                  <li>Trigger the workflow manually first.</li>
+                  <li>Review CloudFormation events for IAM, Glue, or schedule edge cases.</li>
+                  <li>Confirm the alert subscription if email is enabled.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mile" data-mile-id="m4" data-track-target="track-c">
+          <button class="mile-mark" type="button" data-scroll-target="track-c" aria-label="Jump to Track C">M4</button>
+          <div class="mile-body">
+            <div class="mile-meta">
+              <span class="chip later">Validation</span>
+              <span class="chip later">Observe</span>
+              <span class="chip ready">Ready</span>
+            </div>
+            <h3>One full hourly cycle is observed end-to-end</h3>
+            <div class="collapsible">
+              <div class="summary-row">
+                <div class="mile-summary">
+                  <strong>Runtime proof</strong>
+                  <p>This is the first milestone that proves the architecture works outside the repo and produces useful artifacts.</p>
+                </div>
+                <button class="toggle-btn" type="button" data-toggle-target="mile-detail-m4">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="mile-detail-m4">
+                <ul class="flat-list">
+                  <li>Hourly AIS snapshot writes at least one S3 object.</li>
+                  <li>Weather run writes records and refreshes freshness metrics.</li>
+                  <li>Athena-backed export writes <code>exports/dashboard/demo-data.js</code>.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="mile" data-mile-id="m5" data-track-target="track-d">
+          <button class="mile-mark" type="button" data-scroll-target="track-d" aria-label="Jump to Track D">M5</button>
+          <div class="mile-body">
+            <div class="mile-meta">
+              <span class="chip later">Pilot Ready</span>
+              <span class="chip later">Cost Measured</span>
+              <span class="chip ready">Ready</span>
+            </div>
+            <h3>Measured pilot with real cost observation</h3>
+            <div class="collapsible">
+              <div class="summary-row">
+                <div class="mile-summary">
+                  <strong>Decision milestone</strong>
+                  <p>After a few days, replace forecast-only language with measured usage and decide whether the export path needs optimization.</p>
+                </div>
+                <button class="toggle-btn" type="button" data-toggle-target="mile-detail-m5">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="mile-detail-m5">
+                <ul class="flat-list">
+                  <li>Capture actual Lambda duration and request volume.</li>
+                  <li>Measure Athena scan size and query frequency.</li>
+                  <li>Update the budget envelope from estimated to observed.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card section" id="tasks">
+      <div class="section-head">
+        <div>
+          <h2>Detailed Task Board</h2>
+          <p>Open this only when you need implementation detail. The board stays collapsed by default to keep the high-level roadmap clean.</p>
+        </div>
+        <div class="section-tag">Task Tracks</div>
+      </div>
+
+      <button class="task-group-toggle" type="button" id="task-board-toggle" aria-expanded="false" data-toggle-target="task-board">
+        Show Detailed Task Board
+      </button>
+
+      <div class="task-columns" id="task-board" hidden>
+        <div class="task-column" id="track-a-card">
+          <div class="task-head">
+            <strong id="track-a-heading">Track A: AWS foundation</strong>
+            <span>Make deployment safe and low-cost before the first run.</span>
+          </div>
+          <div class="task-list">
+            <div class="task" data-task-id="task-a-role" data-track="A">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Create deploy role</strong>
+                  <p class="task-summary">GitHub OIDC trust, CloudFormation deploy permission, Lambda/S3/Glue/Athena/CloudWatch/SNS permissions.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-a-role" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-a-role-check" /> Mark done</label>
+                <span class="task-map">Maps to M2</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">Use OIDC instead of static AWS keys so GitHub deploys stay safer and cheaper to operate.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-a-role">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-a-role">
+                <p class="task-copy">Confirm least-privilege scope, trust policy to GitHub, and explicit access to the exact services the SAM stack creates. This is the main identity control point for the pilot.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-a-region" data-track="A">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Review region defaults</strong>
+                  <p class="task-summary">Keep stack and workflow anchored to <code>eu-west-3</code> to match cost assumptions.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-a-region" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-a-region-check" /> Mark done</label>
+                <span class="task-map">Maps to M2</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">Avoid accidental region drift between GitHub workflow, manual console checks, and stack outputs.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-a-region">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-a-region">
+                <p class="task-copy">A region mismatch breaks price assumptions and can create “why is nothing updating?” confusion if you inspect the wrong AWS console region later.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-a-cost" data-track="A">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Guard against cost leaks</strong>
+                  <p class="task-summary">Do not add NAT, RDS, Fargate, or VPC-only complexity to this pilot path.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-a-cost" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-a-cost-check" /> Mark done</label>
+                <span class="task-map">Maps to M2</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">This is the most important architecture discipline for the whole pilot.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-a-cost">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-a-cost">
+                <p class="task-copy">If somebody proposes RDS, Fargate, or a VPC plus NAT for convenience, the correct response is to pause and revalidate the mission, because that changes the operating model and cost structure.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-column" id="track-b-card">
+          <div class="task-head">
+            <strong id="track-b-heading">Track B: Secrets and deploy</strong>
+            <span>Make the browser-first deployment path actually usable.</span>
+          </div>
+          <div class="task-list">
+            <div class="task" data-task-id="task-b-secrets" data-track="B">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Add GitHub secrets</strong>
+                  <p class="task-summary"><code>AWS_DEPLOY_ROLE_ARN</code>, <code>AISSTREAM_API_KEY</code>, optional <code>DPL_ALERT_EMAIL</code>.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-b-secrets" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-b-secrets-check" /> Mark done</label>
+                <span class="task-map">Maps to M3</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">These secrets are the minimum required inputs for the first live deployment.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-b-secrets">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-b-secrets">
+                <p class="task-copy">Prefer GitHub environment scoping if you expect multiple stages later. For this pilot, repository-level secrets are enough as long as the deploy role is tightly scoped.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-b-workflow" data-track="B">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Run workflow manually</strong>
+                  <p class="task-summary">Use the deploy workflow once before trusting push-based automatic updates.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-b-workflow" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-b-workflow-check" /> Mark done</label>
+                <span class="task-map">Maps to M3</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">The first deployment should be deliberate and observable, not hidden inside normal code pushes.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-b-workflow">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-b-workflow">
+                <p class="task-copy">Watch workflow logs, CloudFormation events, and stack outputs at the same time. This is where you catch trust, permission, or schedule-definition issues fast.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-b-outputs" data-track="B">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Confirm stack outputs</strong>
+                  <p class="task-summary">Bucket name, Athena workgroup, dashboard name, and export artifact path.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-b-outputs" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-b-outputs-check" /> Mark done</label>
+                <span class="task-map">Maps to M3</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">If the outputs are ambiguous, later monitoring and artifact verification will be slower and more error-prone.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-b-outputs">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-b-outputs">
+                <p class="task-copy">Write down the exact output names and URLs. This becomes the operator map for the first live validation cycle.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-column" id="track-c-card">
+          <div class="task-head">
+            <strong id="track-c-heading">Track C: Data runtime</strong>
+            <span>Verify ingestion, querying, and export with real landed files.</span>
+          </div>
+          <div class="task-list">
+            <div class="task" data-task-id="task-c-ais" data-track="C">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">AIS hourly snapshot check</strong>
+                  <p class="task-summary">Confirm Lambda duration, S3 file creation, record counts, and no silent zero-output runs.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-c-ais" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-c-ais-check" /> Mark done</label>
+                <span class="task-map">Maps to M4</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">This is the most important runtime proof because AIS is the highest-frequency and most timing-sensitive source.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-c-ais">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-c-ais">
+                <p class="task-copy">The Lambda should stay inside the 5 to 7 minute window, write at least one object, and avoid the dangerous case where the run succeeds technically but produces no usable data.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-c-weather" data-track="C">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Weather and NOAA landing</strong>
+                  <p class="task-summary">Check raw prefixes, data shapes, and Glue/Athena compatibility with actual JSON objects.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-c-weather" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-c-weather-check" /> Mark done</label>
+                <span class="task-map">Maps to M4</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">Side-source quality matters because export logic and alerts depend on fresh signals, not AIS alone.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-c-weather">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-c-weather">
+                <p class="task-copy">Validate the actual JSON shape against Glue table definitions and check that partitions or prefixes remain predictable enough for low-cost Athena querying.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-c-export" data-track="C">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Export validation</strong>
+                  <p class="task-summary">Confirm Athena-backed export writes both <code>demo-data.js</code> and curated JSON output.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-c-export" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-c-export-check" /> Mark done</label>
+                <span class="task-map">Maps to M4</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">This is the bridge between the data pipeline and the user-visible dashboard surface.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-c-export">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-c-export">
+                <p class="task-copy">Watch Athena scan size and query time here. If costs start drifting, this is the most likely optimization point before touching the ingestion architecture.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-column" id="track-d-card">
+          <div class="task-head">
+            <strong id="track-d-heading">Track D: Monitoring and product</strong>
+            <span>Turn cloud events into a usable operating surface.</span>
+          </div>
+          <div class="task-list">
+            <div class="task" data-task-id="task-d-metrics" data-track="D">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Confirm CloudWatch metrics</strong>
+                  <p class="task-summary">AIS files written, freshness minutes, export writes, and Lambda errors appear as expected.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-d-metrics" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-d-metrics-check" /> Mark done</label>
+                <span class="task-map">Maps to M5</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">If the dashboard is empty or ambiguous, you lose the whole “useful-at-a-glance” operating advantage.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-d-metrics">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-d-metrics">
+                <p class="task-copy">Focus on a small metric set first. The goal is actionable operator feedback, not an encyclopedic monitoring setup.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-d-alarms" data-track="D">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Test alarms</strong>
+                  <p class="task-summary">Verify missing AIS, stale export, and Lambda failure paths can notify through SNS.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-d-alarms" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-d-alarms-check" /> Mark done</label>
+                <span class="task-map">Maps to M5</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">Alarm paths are part of product quality here because you will trust the pilot less if silent failure is possible.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-d-alarms">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-d-alarms">
+                <p class="task-copy">At least once, simulate a stale path or failed invocation so you know the alerting story works before users depend on the system.</p>
+              </div>
+            </div>
+
+            <div class="task" data-task-id="task-d-hosting" data-track="D">
+              <div class="task-top">
+                <div>
+                  <strong class="task-title">Choose dashboard hosting</strong>
+                  <p class="task-summary">Decide whether the static artifact lives behind S3 website hosting, CloudFront, or another cheap path.</p>
+                </div>
+                <button class="status-tag" type="button" data-status-id="task-d-hosting" data-status="idle">Idle</button>
+              </div>
+              <div class="task-meta">
+                <label class="task-check"><input type="checkbox" data-check-id="task-d-hosting-check" /> Mark done</label>
+                <span class="task-map">Maps to M5</span>
+              </div>
+              <div class="task-actions">
+                <span class="task-copy">The cheaper answer is usually enough for the pilot as long as the artifact is refreshed reliably.</span>
+                <button class="toggle-btn" type="button" data-toggle-target="task-detail-d-hosting">Show Technical Specs</button>
+              </div>
+              <div class="detail-panel" id="task-detail-d-hosting">
+                <p class="task-copy">Prefer the simplest hosting path that gives you refresh reliability and acceptable access control. Over-optimizing hosting too early is usually wasted effort for a three-port pilot.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card section" id="costs">
+      <div class="cost-head">
+        <div>
+          <h2>Forecast Cost Table</h2>
+          <p>This working budget model is interactive on purpose. Use the toggles to make the penalty for reintroducing always-on infrastructure impossible to ignore.</p>
+        </div>
+        <div class="cost-controls">
+          <div class="cost-toggles">
+            <label class="toggle-pill"><input id="nat-toggle" type="checkbox" /> Add NAT Gateway</label>
+            <label class="toggle-pill"><input id="rds-toggle" type="checkbox" /> Add RDS</label>
+          </div>
+          <p class="cost-control-note">If either toggle is on, you are no longer looking at the original serverless-only pilot cost model.</p>
+        </div>
+      </div>
+
+      <table class="cost-table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Expected role</th>
+            <th>Forecast</th>
+            <th>What to watch</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>EventBridge Scheduler</strong></td>
+            <td>Hourly and daily orchestration for Lambda targets</td>
+            <td>Effectively <strong>$0</strong> at this scale</td>
+            <td>Stay far below the free invocation tier.</td>
+          </tr>
+          <tr>
+            <td><strong>Lambda</strong></td>
+            <td>AIS, weather, NOAA, export, freshness</td>
+            <td><strong>$0–4/month</strong></td>
+            <td>AIS duration is the main variable. Keep memory modest and logs under control.</td>
+          </tr>
+          <tr>
+            <td><strong>S3</strong></td>
+            <td>Raw, curated, export, Athena results</td>
+            <td><strong>$0–2/month</strong></td>
+            <td>Storage should stay tiny for the pilot.</td>
+          </tr>
+          <tr>
+            <td><strong>Athena</strong></td>
+            <td>Low-frequency SQL over raw S3 JSON</td>
+            <td><strong>$0–4/month</strong></td>
+            <td>Raw JSON scans are the first thing to optimize if cost drifts upward.</td>
+          </tr>
+          <tr>
+            <td><strong>CloudWatch + SNS</strong></td>
+            <td>Metrics, logs, dashboard, alarms, notifications</td>
+            <td><strong>$1–4/month</strong></td>
+            <td>Verbose logging is the main avoidable cost driver.</td>
+          </tr>
+          <tr id="nat-row" hidden>
+            <td><strong>NAT Gateway</strong> <span class="tooltip" tabindex="0" data-tip="NAT Gateways are convenient for private-subnet outbound traffic, but they introduce a constant monthly charge even before meaningful data transfer starts.">i</span></td>
+            <td>Outbound internet for private subnets</td>
+            <td><strong>+$30–40/month</strong></td>
+            <td>This one change can dominate the whole pilot budget.</td>
+          </tr>
+          <tr id="rds-row" hidden>
+            <td><strong>RDS PostgreSQL</strong> <span class="tooltip" tabindex="0" data-tip="RDS gives you a managed relational database, but it reintroduces steady compute and storage cost into a pilot that was explicitly designed to avoid always-on infrastructure.">i</span></td>
+            <td>Managed relational warehouse/runtime database</td>
+            <td><strong>+$15–25/month</strong></td>
+            <td>Reintroduces always-on cost and more operational surface.</td>
+          </tr>
+          <tr class="total-row">
+            <td><strong>Total planning budget</strong></td>
+            <td>Pilot-only, no always-on compute unless toggled above</td>
+            <td><strong id="total-budget-cell">$5–15/month</strong></td>
+            <td id="total-budget-copy">Valid only while the stack stays serverless-only.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="budget-signal">
+        <div>
+          <strong id="budget-headline">Serverless-only budget intact</strong>
+          <p class="cost-control-note" id="budget-subcopy">This is still the low-cost pilot path. Measured usage may move it slightly, but the architecture is still aligned with the original plan.</p>
+        </div>
+        <div class="budget-state good" id="budget-state">Safe</div>
+      </div>
+    </section>
+
+    <section class="card section warning-zone" id="risks">
+      <div class="section-head">
+        <div>
+          <h2>Danger Zone, Guardrails, And Definition Of Done</h2>
+          <p>This section is styled to be harder to ignore on purpose. These are the moves most likely to break either the cost model or the operational clarity of the pilot.</p>
+        </div>
+        <div class="section-tag">Warning</div>
+      </div>
+
+      <div class="warning-grid">
+        <div class="warning risk">
+          <h3>What can break the low-cost promise</h3>
+          <ul>
+            <li>Adding RDS back into the pilot runtime</li>
+            <li>Adding Fargate or long-lived workers</li>
+            <li>Adding NAT gateways</li>
+            <li>Letting Athena scan unbounded raw JSON</li>
+            <li>Very noisy CloudWatch logs or long <span class="tooltip" tabindex="0" data-tip="TTL stands for time to live. In a low-cost data pipeline, lifecycle and retention TTL settings help delete raw files or logs after they stop being useful so storage cost stays low.">i</span> TTL values on data you do not need for long</li>
+          </ul>
+        </div>
+
+        <div class="warning guard">
+          <h3>Checks before calling it live</h3>
+          <ul>
+            <li>One full hourly cycle succeeds end-to-end</li>
+            <li>AIS writes at least one file each run</li>
+            <li>Export freshness stays within threshold</li>
+            <li>Dashboard artifact refreshes from S3</li>
+            <li>Alarms can notify through SNS</li>
+          </ul>
+        </div>
+
+        <div class="warning ok">
+          <h3>Definition of done for pilot go-live</h3>
+          <p>
+            The pilot is live when the stack is deployed, GitHub-triggered deploys work, the
+            CloudWatch dashboard shows real data, the export artifact updates on schedule, and
+            measured cost after a few days still fits inside the intended low-cost envelope.
+          </p>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        Supporting docs already in the repo:
+        <a href="/Users/loicns/Projects/data-party-logistics/docs/12-serverless-pilot.md">serverless pilot overview</a>,
+        <a href="/Users/loicns/Projects/data-party-logistics/docs/13-serverless-status-and-costs.md">status and cost forecast</a>,
+        and the deployable stack at
+        <a href="/Users/loicns/Projects/data-party-logistics/template.yaml">template.yaml</a>.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEYS = {
+      checks: "dpl-roadmap-checks",
+      statuses: "dpl-roadmap-statuses",
+      panels: "dpl-roadmap-panels",
+      taskBoard: "dpl-roadmap-task-board",
+      cost: "dpl-roadmap-cost",
+    };
+
+    const milestoneMap = {
+      m2: ["task-a-role-check", "task-a-region-check", "task-a-cost-check"],
+      m3: ["task-b-secrets-check", "task-b-workflow-check", "task-b-outputs-check"],
+      m4: ["task-c-ais-check", "task-c-weather-check", "task-c-export-check"],
+      m5: ["task-d-metrics-check", "task-d-alarms-check", "task-d-hosting-check"],
+    };
+
+    const milestoneMeta = [
+      {
+        id: "m2",
+        title: "AWS deployment identity and GitHub secrets ready",
+        copy: "Finish Track A first so the stack can be deployed safely without compromising the low-cost architecture.",
+      },
+      {
+        id: "m3",
+        title: "First stack deployment succeeds",
+        copy: "Move into Track B once the identity and secret path is stable, then force one deliberate manual deployment.",
+      },
+      {
+        id: "m4",
+        title: "One full hourly cycle is observed end-to-end",
+        copy: "Track C is the first runtime proof: real files, real export, real visibility, no silent emptiness.",
+      },
+      {
+        id: "m5",
+        title: "Measured pilot with real cost observation",
+        copy: "Track D turns the stack into an operator-ready pilot with alerts, hosting, and measured cloud economics.",
+      },
+    ];
+
+    const statusOrder = ["idle", "in-progress", "done"];
+    const statusLabels = {
+      idle: "Idle",
+      "in-progress": "In Progress",
+      done: "Done",
+    };
+
+    function readStore(key, fallback) {
+      try {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : fallback;
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    function writeStore(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function toggleDetail(button) {
+      const targetId = button.getAttribute("data-toggle-target");
+      const panel = document.getElementById(targetId);
+      if (!panel) return;
+      const isOpen = panel.classList.toggle("is-open");
+      button.textContent = isOpen ? "Hide Technical Specs" : "Show Technical Specs";
+
+      const panels = readStore(STORAGE_KEYS.panels, {});
+      panels[targetId] = isOpen;
+      writeStore(STORAGE_KEYS.panels, panels);
+    }
+
+    function restorePanels() {
+      const panels = readStore(STORAGE_KEYS.panels, {});
+      document.querySelectorAll("[data-toggle-target]").forEach((button) => {
+        const targetId = button.getAttribute("data-toggle-target");
+        const panel = document.getElementById(targetId);
+        if (!panel) return;
+
+        if (panels[targetId]) {
+          panel.classList.add("is-open");
+          button.textContent = "Hide Technical Specs";
+        } else {
+          panel.classList.remove("is-open");
+          if (!button.id || button.id !== "task-board-toggle") {
+            button.textContent = "Show Technical Specs";
+          }
+        }
+      });
+    }
+
+    function applyItemState(input) {
+      const wrapper = input.closest(".item");
+      if (!wrapper) return;
+      wrapper.classList.toggle("is-checked", input.checked);
+    }
+
+    function applyTaskVisual(task) {
+      const checkbox = task.querySelector('input[type="checkbox"]');
+      const statusButton = task.querySelector(".status-tag");
+      const status = statusButton?.dataset.status || "idle";
+
+      task.classList.toggle("is-done", checkbox?.checked || status === "done");
+      task.classList.toggle("is-in-progress", status === "in-progress" && !(checkbox?.checked));
+    }
+
+    function restoreChecks() {
+      const checks = readStore(STORAGE_KEYS.checks, {});
+      document.querySelectorAll('input[data-check-id]').forEach((input) => {
+        const key = input.getAttribute("data-check-id");
+        input.checked = Boolean(checks[key]);
+        applyItemState(input);
+        const task = input.closest(".task");
+        if (task) applyTaskVisual(task);
+      });
+    }
+
+    function restoreStatuses() {
+      const statuses = readStore(STORAGE_KEYS.statuses, {});
+      document.querySelectorAll(".status-tag").forEach((button) => {
+        const key = button.getAttribute("data-status-id");
+        const status = statuses[key] || "idle";
+        button.dataset.status = status;
+        button.textContent = statusLabels[status];
+      });
+      document.querySelectorAll(".task").forEach(applyTaskVisual);
+    }
+
+    function restoreTaskBoard() {
+      const isOpen = readStore(STORAGE_KEYS.taskBoard, false);
+      const toggle = document.getElementById("task-board-toggle");
+      const board = document.getElementById("task-board");
+      board.hidden = !isOpen;
+      toggle.setAttribute("aria-expanded", String(isOpen));
+      toggle.textContent = isOpen ? "Hide Detailed Task Board" : "Show Detailed Task Board";
+    }
+
+    function restoreCostToggles() {
+      const cost = readStore(STORAGE_KEYS.cost, { nat: false, rds: false });
+      document.getElementById("nat-toggle").checked = Boolean(cost.nat);
+      document.getElementById("rds-toggle").checked = Boolean(cost.rds);
+      updateCostModel();
+    }
+
+    function cycleStatus(button) {
+      const current = button.dataset.status || "idle";
+      const next = statusOrder[(statusOrder.indexOf(current) + 1) % statusOrder.length];
+      button.dataset.status = next;
+      button.textContent = statusLabels[next];
+
+      const statuses = readStore(STORAGE_KEYS.statuses, {});
+      statuses[button.getAttribute("data-status-id")] = next;
+      writeStore(STORAGE_KEYS.statuses, statuses);
+
+      const task = button.closest(".task");
+      if (task) {
+        const checkbox = task.querySelector('input[type="checkbox"]');
+        if (next === "done" && checkbox && !checkbox.checked) {
+          checkbox.checked = true;
+          persistCheck(checkbox);
+        } else if (next !== "done" && checkbox?.checked && next === "idle") {
+          checkbox.checked = false;
+          persistCheck(checkbox);
+        }
+        applyTaskVisual(task);
+      }
+      updateMissionControl();
+    }
+
+    function persistCheck(input) {
+      const checks = readStore(STORAGE_KEYS.checks, {});
+      checks[input.getAttribute("data-check-id")] = input.checked;
+      writeStore(STORAGE_KEYS.checks, checks);
+      applyItemState(input);
+
+      const task = input.closest(".task");
+      if (task) {
+        const statusButton = task.querySelector(".status-tag");
+        if (statusButton) {
+          statusButton.dataset.status = input.checked ? "done" : (statusButton.dataset.status === "done" ? "idle" : statusButton.dataset.status);
+          statusButton.textContent = statusLabels[statusButton.dataset.status];
+
+          const statuses = readStore(STORAGE_KEYS.statuses, {});
+          statuses[statusButton.getAttribute("data-status-id")] = statusButton.dataset.status;
+          writeStore(STORAGE_KEYS.statuses, statuses);
+        }
+        applyTaskVisual(task);
+      }
+    }
+
+    function setMilestoneReady(mileId, ready) {
+      const mile = document.querySelector(`[data-mile-id="${mileId}"]`);
+      if (!mile) return;
+      mile.classList.toggle("ready", ready);
+    }
+
+    function updateMilestoneStates() {
+      Object.entries(milestoneMap).forEach(([mileId, checkIds]) => {
+        const ready = checkIds.every((id) => {
+          const input = document.querySelector(`[data-check-id="${id}"]`);
+          return input?.checked;
+        });
+        setMilestoneReady(mileId, ready);
+      });
+    }
+
+    function getAllTrackItems() {
+      return Array.from(document.querySelectorAll('input[data-check-id]'));
+    }
+
+    function getCompletionStats() {
+      const allInputs = getAllTrackItems();
+      const completed = allInputs.filter((input) => input.checked).length;
+      return {
+        total: allInputs.length,
+        completed,
+        remaining: Math.max(allInputs.length - completed, 0),
+        percentage: allInputs.length ? Math.round((completed / allInputs.length) * 100) : 0,
+      };
+    }
+
+    function findNextMilestone() {
+      return milestoneMeta.find((milestone) => {
+        return milestoneMap[milestone.id].some((checkId) => {
+          const input = document.querySelector(`[data-check-id="${checkId}"]`);
+          return input && !input.checked;
+        });
+      }) || null;
+    }
+
+    function updateMissionControl() {
+      updateMilestoneStates();
+
+      const stats = getCompletionStats();
+      document.getElementById("global-progress").style.width = `${stats.percentage}%`;
+      document.getElementById("mission-strip-count").textContent = `${stats.completed}/${stats.total}`;
+      document.getElementById("completed-count").textContent = stats.completed;
+      document.getElementById("remaining-count").textContent = stats.remaining;
+
+      const nextMilestone = findNextMilestone();
+      const missionTitle = document.getElementById("current-mission-title");
+      const missionCopy = document.getElementById("current-mission-copy");
+      const stripText = document.getElementById("mission-strip-text");
+      const statusCopy = document.getElementById("status-copy");
+
+      if (nextMilestone) {
+        missionTitle.textContent = nextMilestone.title;
+        missionCopy.textContent = nextMilestone.copy;
+        stripText.textContent = nextMilestone.title;
+      } else {
+        missionTitle.textContent = "All mapped roadmap work is complete";
+        missionCopy.textContent = "The current checklist and task board are fully done. Use the measured cost and runtime observations to decide the next product step.";
+        stripText.textContent = "All current roadmap work completed";
+      }
+
+      statusCopy.textContent = stats.remaining === 0
+        ? "Everything visible on this mission board is complete."
+        : `${stats.percentage}% complete across global checks and track tasks.`;
+    }
+
+    function updateCostModel() {
+      const nat = document.getElementById("nat-toggle").checked;
+      const rds = document.getElementById("rds-toggle").checked;
+      writeStore(STORAGE_KEYS.cost, { nat, rds });
+
+      document.getElementById("nat-row").hidden = !nat;
+      document.getElementById("rds-row").hidden = !rds;
+
+      let label = "$5–15/month";
+      let copy = "Valid only while the stack stays serverless-only.";
+      let hero = "$5–15";
+      let heroNote = "Best-case target stays around <strong>$1–8/month</strong>. Keep the stack serverless-only and this remains a credible planning envelope.";
+      let headline = "Serverless-only budget intact";
+      let subcopy = "This is still the low-cost pilot path. Measured usage may move it slightly, but the architecture is still aligned with the original plan.";
+      let state = { text: "Safe", cls: "good" };
+
+      if (nat && rds) {
+        label = "$50–80+/month";
+        copy = "You have effectively left the near-zero-cost pilot architecture.";
+        hero = "$50+";
+        heroNote = "Adding both NAT and RDS turns the pilot into a materially different cost model and weakens the original serverless-only rule.";
+        headline = "Pilot budget no longer low-cost";
+        subcopy = "This combination is exactly the kind of architectural drift the roadmap is designed to prevent.";
+        state = { text: "Broken", cls: "bad" };
+      } else if (nat) {
+        label = "$35–55+/month";
+        copy = "NAT alone can dominate the rest of the serverless pilot budget.";
+        hero = "$35+";
+        heroNote = "A NAT Gateway is often the single fastest way to break the low-cost promise, even before meaningful traffic appears.";
+        headline = "NAT is breaking the budget envelope";
+        subcopy = "Unless there is a non-negotiable reason, remove NAT and keep the pilot on public serverless primitives.";
+        state = { text: "At Risk", cls: "bad" };
+      } else if (rds) {
+        label = "$20–40+/month";
+        copy = "RDS reintroduces always-on cost and a larger operating surface.";
+        hero = "$20+";
+        heroNote = "RDS may still be valid later, but it no longer matches the near-zero-cost pilot strategy.";
+        headline = "Always-on database added";
+        subcopy = "This is not catastrophic, but it does move the project into a different cost and operations class.";
+        state = { text: "Drifting", cls: "warn" };
+      }
+
+      document.getElementById("total-budget-cell").textContent = label;
+      document.getElementById("total-budget-copy").textContent = copy;
+      document.getElementById("hero-cost-range").innerHTML = `${hero}<span>/ month</span>`;
+      document.getElementById("hero-cost-note").innerHTML = heroNote;
+      document.getElementById("budget-headline").textContent = headline;
+      document.getElementById("budget-subcopy").textContent = subcopy;
+
+      const budgetState = document.getElementById("budget-state");
+      budgetState.textContent = state.text;
+      budgetState.className = `budget-state ${state.cls}`;
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('input[data-check-id]').forEach((input) => {
+        input.addEventListener("change", () => {
+          persistCheck(input);
+          updateMissionControl();
+        });
+      });
+
+      document.querySelectorAll(".status-tag").forEach((button) => {
+        button.addEventListener("click", () => cycleStatus(button));
+      });
+
+      document.querySelectorAll(".toggle-btn").forEach((button) => {
+        button.addEventListener("click", () => toggleDetail(button));
+      });
+
+      const boardToggle = document.getElementById("task-board-toggle");
+      boardToggle.addEventListener("click", () => {
+        const board = document.getElementById("task-board");
+        const isOpen = board.hidden;
+        board.hidden = !isOpen;
+        boardToggle.setAttribute("aria-expanded", String(isOpen));
+        boardToggle.textContent = isOpen ? "Hide Detailed Task Board" : "Show Detailed Task Board";
+        writeStore(STORAGE_KEYS.taskBoard, isOpen);
+      });
+
+      document.querySelectorAll("[data-scroll-target]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const targetId = button.getAttribute("data-scroll-target");
+          const target = document.getElementById(`${targetId}-card`) || document.getElementById(targetId);
+          if (!target) return;
+
+          const board = document.getElementById("task-board");
+          if (board.hidden) {
+            board.hidden = false;
+            boardToggle.textContent = "Hide Detailed Task Board";
+            boardToggle.setAttribute("aria-expanded", "true");
+            writeStore(STORAGE_KEYS.taskBoard, true);
+          }
+
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+
+      document.getElementById("nat-toggle").addEventListener("change", updateCostModel);
+      document.getElementById("rds-toggle").addEventListener("change", updateCostModel);
+    }
+
+    function init() {
+      restoreChecks();
+      restoreStatuses();
+      restoreTaskBoard();
+      restorePanels();
+      restoreCostToggles();
+      bindEvents();
+      updateMissionControl();
+    }
+
+    init();
+  </script>
+</body>
+</html>
