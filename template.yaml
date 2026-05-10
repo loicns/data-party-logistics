@@ -33,7 +33,6 @@ Globals:
     Handler: app.lambda_handler
     Environment:
       Variables:
-        AWS_REGION: !Ref AWS::Region
         S3_BUCKET_RAW: !Ref DataBucket
         DATA_BUCKET_NAME: !Ref DataBucket
         ATHENA_DATABASE: dpl_pilot
