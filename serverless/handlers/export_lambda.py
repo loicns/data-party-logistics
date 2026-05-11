@@ -82,6 +82,15 @@ def _safe_float(value: str | None, default: float = 0.0) -> float:
         return default
 
 
+def _nav_status_parts(nav_status: Any) -> tuple[str, int | None]:
+    status_text = str(nav_status or "").strip().lower()
+    if isinstance(nav_status, int):
+        return status_text, nav_status
+    if status_text.isdigit():
+        return status_text, int(status_text)
+    return status_text, None
+
+
 def _pad(values: list[float], size: int, fill: float = 0.0) -> list[float]:
     if not values:
         return [fill] * size
@@ -271,10 +280,12 @@ ORDER BY
 
 
 def _zone(distance_nm: float, speed_knots: float, nav_status: Any) -> str:
-    status = str(nav_status or "").lower()
-    if "5" in status or "moored" in status:
+    status, status_code = _nav_status_parts(nav_status)
+    if "moored" in status or status_code == 5:
         return "berth"
-    if "1" in status or "anchor" in status or speed_knots <= 1.0:
+    if "anchor" in status or status_code == 1:
+        return "anchor"
+    if speed_knots <= 0.3 and distance_nm <= 2:
         return "anchor"
     if distance_nm <= 50:
         return "approaching"
