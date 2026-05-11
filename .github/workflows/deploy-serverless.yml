@@ -53,3 +53,5 @@ jobs:
           --parameter-overrides
           AlertEmail="${{ secrets.DPL_ALERT_EMAIL }}"
           AisStreamApiKey="${{ secrets.AISSTREAM_API_KEY }}"
+          PublicDashboardBucketName="${{ secrets.DPL_DASHBOARD_BUCKET }}"
+          PublicDashboardDistributionId="${{ secrets.DPL_CLOUDFRONT_DISTRIBUTION_ID }}"

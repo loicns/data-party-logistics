@@ -18,9 +18,23 @@ Parameters:
     MinValue: 300
     MaxValue: 420
     Description: Hourly AIS websocket capture window.
+  PublicDashboardBucketName:
+    Type: String
+    Default: ""
+    Description: Optional public dashboard bucket that should receive the latest demo-data.js automatically.
+  PublicDashboardObjectKey:
+    Type: String
+    Default: "demo-data.js"
+    Description: Object key for the public dashboard artifact.
+  PublicDashboardDistributionId:
+    Type: String
+    Default: ""
+    Description: Optional CloudFront distribution id to invalidate after publishing demo-data.js.
 
 Conditions:
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  HasPublicDashboardBucket: !Not [!Equals [!Ref PublicDashboardBucketName, ""]]
+  HasPublicDashboardDistribution: !Not [!Equals [!Ref PublicDashboardDistributionId, ""]]
 
 Globals:
   Function:
@@ -208,7 +222,7 @@ Resources:
       Timeout: 480
       # SAM doesn't support `Policies` inside `Globals.Function`, so we keep the
       # shared runtime permissions on each function instead.
-      Policies: &CommonFunctionPolicies
+      Policies:
         - S3CrudPolicy:
             BucketName: !Ref DataBucket
         - Version: "2012-10-17"
@@ -242,7 +256,23 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-weather"
       Handler: serverless.handlers.weather_lambda.lambda_handler
-      Policies: *CommonFunctionPolicies
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
       Events:
         HourlyRun:
           Type: ScheduleV2
@@ -256,7 +286,23 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-noaa"
       Handler: serverless.handlers.noaa_lambda.lambda_handler
-      Policies: *CommonFunctionPolicies
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
       Events:
         DailyRun:
           Type: ScheduleV2
@@ -271,7 +317,46 @@ Resources:
       FunctionName: !Sub "${AWS::StackName}-export"
       Handler: serverless.handlers.export_lambda.lambda_handler
       Timeout: 300
-      Policies: *CommonFunctionPolicies
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
+        - !If
+          - HasPublicDashboardBucket
+          - Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${PublicDashboardBucketName}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - HasPublicDashboardDistribution
+          - Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${PublicDashboardDistributionId}"
+          - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          PUBLIC_DASHBOARD_BUCKET_NAME: !Ref PublicDashboardBucketName
+          PUBLIC_DASHBOARD_OBJECT_KEY: !Ref PublicDashboardObjectKey
+          PUBLIC_DASHBOARD_DISTRIBUTION_ID: !Ref PublicDashboardDistributionId
       Events:
         HourlyRun:
           Type: ScheduleV2
@@ -285,7 +370,23 @@ Resources:
     Properties:
       FunctionName: !Sub "${AWS::StackName}-freshness"
       Handler: serverless.handlers.freshness_lambda.lambda_handler
-      Policies: *CommonFunctionPolicies
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
       Events:
         ThirtyMinuteRun:
           Type: ScheduleV2
@@ -422,6 +523,9 @@ Outputs:
     Value: !Ref DataBucket
   DashboardArtifactS3Uri:
     Value: !Sub "s3://${DataBucket}/exports/dashboard/demo-data.js"
+  PublicDashboardArtifactS3Uri:
+    Condition: HasPublicDashboardBucket
+    Value: !Sub "s3://${PublicDashboardBucketName}/${PublicDashboardObjectKey}"
   AthenaDatabase:
     Value: dpl_pilot
   AthenaWorkgroupName:

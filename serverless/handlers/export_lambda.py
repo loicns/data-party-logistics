@@ -22,6 +22,10 @@ def _env(name: str, default: str = "") -> str:
     return value
 
 
+def _optional_env(name: str, default: str = "") -> str:
+    return os.getenv(name, default).strip()
+
+
 def _sources(bucket: str) -> list[dict[str, Any]]:
     source_defs = [
         (
@@ -229,6 +233,39 @@ with_distance AS (
             )
         ) AS distance_nm
     FROM current_positions
+),
+classified AS (
+    SELECT
+        mmsi,
+        ship_name,
+        lat,
+        lon,
+        sog,
+        nav_status,
+        distance_nm,
+        CASE
+            WHEN distance_nm <= 10 THEN 'inner'
+            WHEN distance_nm <= 50 THEN 'approach'
+            WHEN distance_nm <= 120 THEN 'near'
+            ELSE 'outer'
+        END AS distance_band,
+        CASE
+            WHEN coalesce(nav_status, 15) = 5 THEN 0
+            WHEN coalesce(nav_status, 15) = 1 OR coalesce(sog, 0) <= 1 THEN 1
+            WHEN distance_nm <= 50 THEN 2
+            ELSE 3
+        END AS zone_priority
+    FROM with_distance
+    WHERE distance_nm <= 200
+),
+ranked AS (
+    SELECT
+        *,
+        row_number() OVER (
+            PARTITION BY distance_band
+            ORDER BY zone_priority ASC, distance_nm ASC, coalesce(sog, 0) DESC
+        ) AS band_rank
+    FROM classified
 )
 SELECT
     mmsi,
@@ -238,10 +275,22 @@ SELECT
     sog,
     nav_status,
     distance_nm
-FROM with_distance
-WHERE distance_nm <= 200
-ORDER BY distance_nm ASC
-LIMIT 12
+FROM ranked
+WHERE
+    (distance_band = 'inner' AND band_rank <= 18)
+    OR (distance_band = 'approach' AND band_rank <= 18)
+    OR (distance_band = 'near' AND band_rank <= 12)
+    OR (distance_band = 'outer' AND band_rank <= 12)
+ORDER BY
+    CASE distance_band
+        WHEN 'inner' THEN 0
+        WHEN 'approach' THEN 1
+        WHEN 'near' THEN 2
+        ELSE 3
+    END ASC,
+    zone_priority ASC,
+    distance_nm ASC
+LIMIT 60
 """
 
 
@@ -389,11 +438,76 @@ def _build_port_payload(
     }
 
 
+def _publish_dashboard_artifacts(
+    *,
+    s3: Any,
+    bucket: str,
+    export_key: str,
+    curated_key: str,
+    body: str,
+    payload: dict[str, Any],
+) -> None:
+    s3.put_object(
+        Bucket=bucket,
+        Key=export_key,
+        Body=body.encode("utf-8"),
+        ContentType="application/javascript",
+        CacheControl="no-cache",
+    )
+
+    s3.put_object(
+        Bucket=bucket,
+        Key=curated_key,
+        Body=json.dumps(payload, indent=2).encode("utf-8"),
+        ContentType="application/json",
+        CacheControl="no-cache",
+    )
+
+
+def _publish_public_dashboard_artifact(
+    *,
+    s3: Any,
+    body: str,
+    bucket_name: str,
+    object_key: str,
+) -> bool:
+    if not bucket_name:
+        return False
+
+    s3.put_object(
+        Bucket=bucket_name,
+        Key=object_key,
+        Body=body.encode("utf-8"),
+        ContentType="application/javascript",
+        CacheControl="no-cache, no-store, must-revalidate",
+    )
+    return True
+
+
+def _invalidate_distribution(distribution_id: str) -> None:
+    if not distribution_id:
+        return
+
+    boto3.client("cloudfront").create_invalidation(
+        DistributionId=distribution_id,
+        InvalidationBatch={
+            "Paths": {
+                "Quantity": 1,
+                "Items": ["/demo-data.js"],
+            },
+            "CallerReference": datetime.now(UTC).strftime("%Y%m%d%H%M%S%f"),
+        },
+    )
+
+
 def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
     bucket = _env("DATA_BUCKET_NAME")
     database = _env("ATHENA_DATABASE")
     output_location = _env("ATHENA_OUTPUT_LOCATION")
     export_key = os.getenv("DASHBOARD_EXPORT_KEY", "exports/dashboard/demo-data.js")
+    public_dashboard_bucket = _optional_env("PUBLIC_DASHBOARD_BUCKET_NAME")
+    public_dashboard_key = _optional_env("PUBLIC_DASHBOARD_OBJECT_KEY", "demo-data.js")
+    dashboard_distribution_id = _optional_env("PUBLIC_DASHBOARD_DISTRIBUTION_ID")
 
     payload = {
         "metadata": {
@@ -413,23 +527,25 @@ def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
     body = "window.DEMO_DATA = " + json.dumps(payload, indent=2) + ";\n"
     s3 = boto3.client("s3")
-    s3.put_object(
-        Bucket=bucket,
-        Key=export_key,
-        Body=body.encode("utf-8"),
-        ContentType="application/javascript",
-        CacheControl="no-cache",
-    )
-
     date_prefix = datetime.now(UTC).strftime("%Y-%m-%d")
     curated_key = f"curated/port_metrics/date={date_prefix}/latest.json"
-    s3.put_object(
-        Bucket=bucket,
-        Key=curated_key,
-        Body=json.dumps(payload, indent=2).encode("utf-8"),
-        ContentType="application/json",
-        CacheControl="no-cache",
+
+    _publish_dashboard_artifacts(
+        s3=s3,
+        bucket=bucket,
+        export_key=export_key,
+        curated_key=curated_key,
+        body=body,
+        payload=payload,
     )
+    published_public_dashboard = _publish_public_dashboard_artifact(
+        s3=s3,
+        body=body,
+        bucket_name=public_dashboard_bucket,
+        object_key=public_dashboard_key,
+    )
+    if published_public_dashboard:
+        _invalidate_distribution(dashboard_distribution_id)
 
     put_metric("ExportRunSuccess", 1)
     put_metric("ExportArtifactWritten", 1)
@@ -438,4 +554,15 @@ def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
         sum(len(port["vessels"]) for port in payload["ports"].values()),
     )
 
-    return {"status": "ok", "export_key": export_key, "curated_key": curated_key}
+    return {
+        "status": "ok",
+        "export_key": export_key,
+        "curated_key": curated_key,
+        "public_dashboard_bucket": public_dashboard_bucket or None,
+        "public_dashboard_key": public_dashboard_key
+        if published_public_dashboard
+        else None,
+        "invalidated_distribution_id": dashboard_distribution_id
+        if published_public_dashboard and dashboard_distribution_id
+        else None,
+    }
