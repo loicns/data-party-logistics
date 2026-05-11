@@ -127,6 +127,7 @@ SELECT
     count(*) AS total_vessels,
     sum(
         CASE
+            WHEN coalesce(nav_status, 15) = 5 THEN 0
             WHEN coalesce(nav_status, 15) = 1 OR coalesce(sog, 0) <= 1
                 THEN 1
             ELSE 0
@@ -185,6 +186,7 @@ SELECT
     count(*) AS total_vessels,
     sum(
         CASE
+            WHEN coalesce(nav_status, 15) = 5 THEN 0
             WHEN coalesce(nav_status, 15) = 1 OR coalesce(sog, 0) <= 1
                 THEN 1
             ELSE 0
@@ -244,28 +246,12 @@ classified AS (
         nav_status,
         distance_nm,
         CASE
-            WHEN distance_nm <= 10 THEN 'inner'
-            WHEN distance_nm <= 50 THEN 'approach'
-            WHEN distance_nm <= 120 THEN 'near'
-            ELSE 'outer'
-        END AS distance_band,
-        CASE
             WHEN coalesce(nav_status, 15) = 5 THEN 0
             WHEN coalesce(nav_status, 15) = 1 OR coalesce(sog, 0) <= 1 THEN 1
             WHEN distance_nm <= 50 THEN 2
             ELSE 3
         END AS zone_priority
     FROM with_distance
-    WHERE distance_nm <= 200
-),
-ranked AS (
-    SELECT
-        *,
-        row_number() OVER (
-            PARTITION BY distance_band
-            ORDER BY zone_priority ASC, distance_nm ASC, coalesce(sog, 0) DESC
-        ) AS band_rank
-    FROM classified
 )
 SELECT
     mmsi,
@@ -275,22 +261,12 @@ SELECT
     sog,
     nav_status,
     distance_nm
-FROM ranked
-WHERE
-    (distance_band = 'inner' AND band_rank <= 18)
-    OR (distance_band = 'approach' AND band_rank <= 18)
-    OR (distance_band = 'near' AND band_rank <= 12)
-    OR (distance_band = 'outer' AND band_rank <= 12)
+FROM classified
+WHERE distance_nm <= 200
 ORDER BY
-    CASE distance_band
-        WHEN 'inner' THEN 0
-        WHEN 'approach' THEN 1
-        WHEN 'near' THEN 2
-        ELSE 3
-    END ASC,
     zone_priority ASC,
-    distance_nm ASC
-LIMIT 60
+    distance_nm ASC,
+    coalesce(sog, 0) DESC
 """
 
 
@@ -411,6 +387,93 @@ def _build_port_payload(
             }
         )
 
+    # ---------------------------------------------------------
+    # DERIVED HEURISTICS: Virtual Berths and Arrival Schedule
+    # ---------------------------------------------------------
+    berth_allocations = []
+    berthed_vessels = [v for v in vessels if v["zone"] == "berth"]
+
+    # Define port-specific terminal names
+    terminal_names = {
+        "NLRTM": [
+            "Euromax Terminal",
+            "ECT Delta",
+            "APM Terminals",
+            "RWG",
+            "Maasvlakte 2",
+            "Botlek",
+        ],
+        "SGSIN": [
+            "Pasir Panjang T1",
+            "Pasir Panjang T2",
+            "Keppel",
+            "Brani",
+            "Tanjong Pagar",
+            "Tuas Mega Port",
+        ],
+        "USLAX": ["Pier 400", "Trapac", "YTI", "WBCT", "Everport", "Fenix Marine"],
+    }
+    port_terminals = terminal_names.get(
+        port_code, [f"Terminal {i}" for i in range(1, 7)]
+    )
+
+    # Create 6 virtual berths for the demo
+    for i in range(1, 7):
+        terminal_name = (
+            port_terminals[i - 1] if i - 1 < len(port_terminals) else f"Terminal {i}"
+        )
+        if i <= len(berthed_vessels):
+            v = berthed_vessels[i - 1]
+            berth_allocations.append(
+                {
+                    "id": f"berth-{i}",
+                    "name": terminal_name,
+                    "status": "occupied",
+                    "vessel": v["name"],
+                    "mmsi": v["mmsi"],
+                    "eta": "Berthed",
+                }
+            )
+        else:
+            berth_allocations.append(
+                {
+                    "id": f"berth-{i}",
+                    "name": terminal_name,
+                    "status": "available",
+                    "vessel": None,
+                    "mmsi": None,
+                    "eta": None,
+                }
+            )
+
+    schedule = []
+    approaching = [v for v in vessels if v["zone"] in ["approaching", "transit"]]
+    approaching.sort(key=lambda x: x["dist"])
+
+    for v in approaching:
+        schedule.append(
+            {
+                "vessel": v["name"],
+                "mmsi": v["mmsi"],
+                "type": "Arrival",
+                "status": "In Transit",
+                "eta": v["eta"],
+                "distance_nm": v["dist"],
+            }
+        )
+
+    waiting_count = sum(1 for vessel in vessels if vessel["zone"] == "anchor")
+    tracked_count = len(vessels)
+    live_avg_speed = (
+        round(
+            sum(float(vessel["sog"]) for vessel in vessels) / tracked_count,
+            1,
+        )
+        if tracked_count
+        else 0.0
+    )
+    max_wave = round(_safe_float(summary.get("max_wave_height_m")), 1)
+
     return {
         "name": meta["name"],
         "flag": meta["flag"],
@@ -420,21 +483,23 @@ def _build_port_payload(
         "metrics": {
             "congestionPct": round(
                 _trend_score(
-                    _safe_float(summary.get("total_vessels")),
-                    _safe_float(summary.get("vessels_at_anchor")),
-                    _safe_float(summary.get("avg_speed_in_zone")),
-                    _safe_float(summary.get("max_wave_height_m")),
+                    tracked_count,
+                    waiting_count,
+                    live_avg_speed,
+                    max_wave,
                 )
                 * 100
             ),
-            "waiting": int(_safe_float(summary.get("vessels_at_anchor"))),
-            "avgSpeed": round(_safe_float(summary.get("avg_speed_in_zone")), 1),
-            "maxWave": round(_safe_float(summary.get("max_wave_height_m")), 1),
-            "tracked": int(_safe_float(summary.get("total_vessels"))),
+            "waiting": waiting_count,
+            "avgSpeed": live_avg_speed,
+            "maxWave": max_wave,
+            "tracked": tracked_count,
         },
         "forecast": trend_values[-5:],
         "trend": trend_values,
         "vessels": vessels,
+        "berthAllocations": berth_allocations,
+        "schedule": schedule,
     }
 
 
@@ -500,6 +565,30 @@ def _invalidate_distribution(distribution_id: str) -> None:
     )
 
 
+def _build_labels() -> dict[str, list[str]]:
+    """Generate human-readable day labels relative to today at export time."""
+    from datetime import date, timedelta
+
+    today = date.today()
+
+    def _day_label(d: date) -> str:
+        delta = (today - d).days
+        if delta == 0:
+            return "Today"
+        if delta == 1:
+            return "Yesterday"
+        # "Mon 5 May" style
+        return d.strftime("%-d %b")
+
+    trend_days = [today - timedelta(days=i) for i in range(5, -1, -1)]
+    outlook_days = [today - timedelta(days=i) for i in range(4, -1, -1)]
+
+    return {
+        "trend": [_day_label(d) for d in trend_days],
+        "outlook": [_day_label(d) for d in outlook_days],
+    }
+
+
 def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
     bucket = _env("DATA_BUCKET_NAME")
     database = _env("ATHENA_DATABASE")
@@ -514,10 +603,7 @@ def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
             "generatedAt": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
             "mode": "athena-export",
         },
-        "labels": {
-            "outlook": ["D-4", "D-3", "D-2", "D-1", "Now"],
-            "trend": ["D-5", "D-4", "D-3", "D-2", "D-1", "Now"],
-        },
+        "labels": _build_labels(),
         "sources": _sources(bucket),
         "ports": {
             code: _build_port_payload(database, output_location, code, meta)
