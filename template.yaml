@@ -216,6 +216,8 @@ Resources:
 
   AisSnapshotFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub "${AWS::StackName}-ais-snapshot"
       Handler: serverless.handlers.ais_lambda.lambda_handler
@@ -253,6 +255,8 @@ Resources:
 
   WeatherIngestionFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub "${AWS::StackName}-weather"
       Handler: serverless.handlers.weather_lambda.lambda_handler
@@ -283,6 +287,8 @@ Resources:
 
   NoaaIngestionFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub "${AWS::StackName}-noaa"
       Handler: serverless.handlers.noaa_lambda.lambda_handler
@@ -313,6 +319,8 @@ Resources:
 
   DashboardExportFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub "${AWS::StackName}-export"
       Handler: serverless.handlers.export_lambda.lambda_handler
@@ -367,6 +375,8 @@ Resources:
 
   FreshnessCheckFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
     Properties:
       FunctionName: !Sub "${AWS::StackName}-freshness"
       Handler: serverless.handlers.freshness_lambda.lambda_handler
@@ -526,6 +536,10 @@ Outputs:
   PublicDashboardArtifactS3Uri:
     Condition: HasPublicDashboardBucket
     Value: !Sub "s3://${PublicDashboardBucketName}/${PublicDashboardObjectKey}"
+  DashboardCloudFrontUrl:
+    Condition: HasPublicDashboardDistribution
+    Value: !Sub "https://dz4lgcial54jx.cloudfront.net/${PublicDashboardObjectKey}"
+    Description: "VITE_DATA_URL — set this in Vercel env vars and dashboard-v2/.env.production"
   AthenaDatabase:
     Value: dpl_pilot
   AthenaWorkgroupName:

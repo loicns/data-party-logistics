@@ -1,0 +1,42 @@
+# Exclude everything that Lambda doesn't need.
+# SAM reads this like .gitignore — matching paths are not zipped into the Lambda package.
+
+# Frontend / UI
+dashboard-v2/
+dashboard/
+site/
+
+# Infrastructure-as-code (Terraform binaries, state files)
+infra/
+
+# Documentation
+docs/
+roadmap/
+
+# ML / data work (not needed by ingestion Lambdas)
+models/
+features/
+warehouse/
+agent/
+
+# Python tooling
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# SAM build artefacts
+.aws-sam/
+
+# Dev / scratch files
+tests/
+local_copy.ndjson
+scratch_setup_db.py
+check_db.py
+prefect.yaml
+mkdocs.yml
+pyproject.toml
+uv.lock
