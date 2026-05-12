@@ -15,12 +15,12 @@ function congestionColor(score) {
 }
 
 export default function CongestionInsights() {
-  const { port, trendLabels, outlookLabels, metadata } = useData();
+  const { port, trendLabels, metadata } = useData();
   const [zoneFilter, setZoneFilter] = useState('all');
 
   if (!port) return null;
 
-  const { metrics, vessels = [], berthAllocations = [], trend = [], forecast = [] } = port;
+  const { metrics, vessels = [], berthAllocations = [], trend = [] } = port;
 
   // ── Zone breakdown derived from vessels array ───────────────────────────
   const zoneCounts = vessels.reduce((acc, v) => {
