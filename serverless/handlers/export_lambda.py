@@ -544,17 +544,32 @@ def _publish_public_dashboard_artifact(
     *,
     s3: Any,
     body: str,
+    payload: dict[str, Any],
     bucket_name: str,
     object_key: str,
 ) -> bool:
     if not bucket_name:
         return False
 
+    # .js file — for the window.DEMO_DATA fallback path (local dev)
     s3.put_object(
         Bucket=bucket_name,
         Key=object_key,
         Body=body.encode("utf-8"),
         ContentType="application/javascript",
+        CacheControl="no-cache, no-store, must-revalidate",
+    )
+    # .json file — for the VITE_DATA_URL fetch path (Vercel production)
+    json_key = (
+        object_key.replace(".js", ".json")
+        if object_key.endswith(".js")
+        else object_key + ".json"
+    )
+    s3.put_object(
+        Bucket=bucket_name,
+        Key=json_key,
+        Body=json.dumps(payload, indent=2).encode("utf-8"),
+        ContentType="application/json",
         CacheControl="no-cache, no-store, must-revalidate",
     )
     return True
@@ -568,8 +583,8 @@ def _invalidate_distribution(distribution_id: str) -> None:
         DistributionId=distribution_id,
         InvalidationBatch={
             "Paths": {
-                "Quantity": 1,
-                "Items": ["/demo-data.js"],
+                "Quantity": 2,
+                "Items": ["/demo-data.js", "/demo-data.json"],
             },
             "CallerReference": datetime.now(UTC).strftime("%Y%m%d%H%M%S%f"),
         },
@@ -638,6 +653,7 @@ def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
     published_public_dashboard = _publish_public_dashboard_artifact(
         s3=s3,
         body=body,
+        payload=payload,
         bucket_name=public_dashboard_bucket,
         object_key=public_dashboard_key,
     )
