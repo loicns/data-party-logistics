@@ -106,6 +106,8 @@ WITH latest AS (
     FROM raw_ais_positions
     WHERE date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
     GROUP BY mmsi
+    HAVING max(from_iso8601_timestamp(received_at))
+        >= current_timestamp - INTERVAL '6' HOUR
 ),
 current_positions AS (
     SELECT a.*
@@ -136,8 +138,9 @@ SELECT
     count(*) AS total_vessels,
     sum(
         CASE
-            WHEN coalesce(nav_status, 15) = 5 THEN 0
-            WHEN coalesce(nav_status, 15) = 1 OR coalesce(sog, 0) <= 1
+            WHEN coalesce(nav_status, 15) = 5 AND distance_nm <= 15 THEN 0
+            WHEN (coalesce(nav_status, 15) = 1 AND distance_nm <= 30)
+              OR (coalesce(sog, 0) <= 1 AND distance_nm <= 30)
                 THEN 1
             ELSE 0
         END
@@ -219,6 +222,8 @@ WITH latest AS (
     FROM raw_ais_positions
     WHERE date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
     GROUP BY mmsi
+    HAVING max(from_iso8601_timestamp(received_at))
+        >= current_timestamp - INTERVAL '6' HOUR
 ),
 current_positions AS (
     SELECT a.*
@@ -281,11 +286,13 @@ ORDER BY
 
 def _zone(distance_nm: float, speed_knots: float, nav_status: Any) -> str:
     status, status_code = _nav_status_parts(nav_status)
-    if "moored" in status or status_code == 5:
+    # Berth: moored nav_status is only credible within 15 nm of the port centre
+    if ("moored" in status or status_code == 5) and distance_nm <= 15:
         return "berth"
-    if "anchor" in status or status_code == 1:
+    # Anchor: anchor nav_status or very slow — only credible within 30 nm
+    if ("anchor" in status or status_code == 1) and distance_nm <= 30:
         return "anchor"
-    if speed_knots <= 0.3 and distance_nm <= 2:
+    if speed_knots <= 0.3 and distance_nm <= 5:
         return "anchor"
     if distance_nm <= 50:
         return "approaching"
