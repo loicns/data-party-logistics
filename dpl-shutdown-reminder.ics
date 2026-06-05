@@ -1,0 +1,27 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//DPL//Cost Shutdown Reminder//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:dpl-cost-shutdown-20260702@data-party-logistics
+DTSTAMP:20260604T120000Z
+DTSTART:20260702T090000
+DTEND:20260702T091500
+SUMMARY:Pause DPL AWS ingestion to stop cost
+DESCRIPTION:You left the data-party-logistics ingestion running to collect we
+ eks of AIS data. By now you likely have enough — pause it to stop AWS cost.\n
+ \nTO PAUSE (keeps all data, reversible):\n  cd /Users/loicns/Projects/data-pa
+ rty-logistics\n  scripts/pause.sh\n\nTO RESUME LATER:\n  scripts/resume.sh\n\
+ nFor near-$0 (also drop the CloudWatch dashboard) or full teardown, see SHUTD
+ OWN.md in the project root.\n\nBEFORE pausing, consider rebuilding the Athena
+  feature tables on the larger dataset and re-running build_dataset.py — you s
+ hould now have 1000+ rows for real training.
+LOCATION:/Users/loicns/Projects/data-party-logistics
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Pause DPL AWS ingestion — run scripts/pause.sh
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+END:VCALENDAR
