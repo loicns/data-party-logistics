@@ -24,3 +24,28 @@ PORTS: dict[str, PortMeta] = {
     "USNYC": {"name": "New York", "flag": "US", "lat": 40.6892, "lon": -74.0445},
     "TWKHH": {"name": "Kaohsiung", "flag": "TW", "lat": 22.6163, "lon": 120.2650},
 }
+
+
+# Real terminal names per port (static reference data). We only list ports
+# whose terminal layout we can verify. AIS gives a vessel's position and a
+# berth-zone count, but NOT which specific terminal it occupies — so we never
+# map a named vessel to a named terminal. Ports absent here emit no berth data.
+PORT_TERMINALS: dict[str, list[str]] = {
+    "NLRTM": [
+        "Euromax Terminal",
+        "ECT Delta",
+        "APM Terminals",
+        "RWG",
+        "Maasvlakte 2",
+        "Botlek",
+    ],
+    "SGSIN": [
+        "Pasir Panjang T1",
+        "Pasir Panjang T2",
+        "Keppel",
+        "Brani",
+        "Tanjong Pagar",
+        "Tuas Mega Port",
+    ],
+    "USLAX": ["Pier 400", "Trapac", "YTI", "WBCT", "Everport", "Fenix Marine"],
+}

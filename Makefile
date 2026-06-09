@@ -3,7 +3,8 @@
 # We copy only the Lambda source modules and install only Lambda dependencies.
 # This keeps each package well under Lambda's 250 MB unzipped limit.
 
-LAMBDA_MODULES = serverless ingestion
+# `athena` ships the canonical CTAS .sql files so features_lambda can read them.
+LAMBDA_MODULES = serverless ingestion athena
 LAMBDA_REQS    = requirements.txt
 
 define _build
@@ -25,3 +26,13 @@ build-DashboardExportFunction:
 
 build-FreshnessCheckFunction:
 	$(call _build)
+
+build-FeaturesFunction:
+	$(call _build)
+
+# Predict needs ML libs (lightgbm + scikit-learn) and only the serverless +
+# models.features code — not the ingestion clients. Separate reqs keep the
+# other functions lean.
+build-PredictFunction:
+	cp -r serverless models $(ARTIFACTS_DIR)/
+	python3.12 -m pip install -r requirements-predict.txt -t $(ARTIFACTS_DIR) --upgrade --quiet

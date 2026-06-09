@@ -30,6 +30,13 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional CloudFront distribution id to invalidate after publishing demo-data.js.
+  PredictionsObjectKey:
+    Type: String
+    Default: "predictions.json"
+    Description: >-
+      Object key for the published predictions file. Set this to sit next to the
+      dashboard data (e.g. "api/v1/predictions.json" if demo-data is at
+      "api/v1/demo-data.js") so the dashboard derives its URL by filename swap.
 
 Conditions:
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
@@ -402,6 +409,104 @@ Resources:
           Type: ScheduleV2
           Properties:
             ScheduleExpression: rate(30 minutes)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  FeaturesFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-features"
+      Handler: serverless.handlers.features_lambda.lambda_handler
+      Timeout: 900
+      MemorySize: 1024
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:CreateTable
+                - glue:DeleteTable
+                - glue:UpdateTable
+                - glue:GetPartitions
+                - glue:BatchCreatePartition
+                - glue:CreatePartition
+                - cloudwatch:PutMetricData
+              Resource: "*"
+      Events:
+        HourlyRun:
+          Type: ScheduleV2
+          Properties:
+            # :15 — after ingestion (:00, :10), before export (:25) and predict (:30)
+            ScheduleExpression: cron(15 * * * ? *)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  PredictFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-predict"
+      Handler: serverless.handlers.predict_lambda.lambda_handler
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          PUBLIC_DASHBOARD_BUCKET_NAME: !Ref PublicDashboardBucketName
+          PREDICTIONS_OBJECT_KEY: !Ref PredictionsObjectKey
+          PUBLIC_DASHBOARD_DISTRIBUTION_ID: !Ref PublicDashboardDistributionId
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
+        - !If
+          - HasPublicDashboardBucket
+          - Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "arn:aws:s3:::${PublicDashboardBucketName}/*"
+          - !Ref AWS::NoValue
+        - !If
+          - HasPublicDashboardDistribution
+          - Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${PublicDashboardDistributionId}"
+          - !Ref AWS::NoValue
+      Events:
+        HourlyRun:
+          Type: ScheduleV2
+          Properties:
+            # :30 — after features (:15) has refreshed the gold tables
+            ScheduleExpression: cron(30 * * * ? *)
             FlexibleTimeWindow:
               Mode: "OFF"
 

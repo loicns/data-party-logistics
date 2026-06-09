@@ -1,0 +1,6 @@
+# Runtime deps for the predict Lambda (zip), installed by the Makefile
+# `build-PredictFunction` target. boto3 is provided by the Lambda runtime.
+# Build with `sam build --use-container` so the native wheels are Linux x86_64.
+lightgbm>=4.5
+scikit-learn>=1.5
+numpy>=1.26

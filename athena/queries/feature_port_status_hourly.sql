@@ -3,7 +3,8 @@
 -- One row per (port_code, observation_hour) — this is the row shape the ML
 -- model trains on.
 
-CREATE TABLE IF NOT EXISTS dpl_pilot.feature_port_status_hourly
+-- REBUILDABLE: features_lambda drops + clears S3 before this CREATE.
+CREATE TABLE dpl_pilot.feature_port_status_hourly
 WITH (
     format = 'PARQUET',
     partitioned_by = ARRAY['date_partition'],
@@ -19,17 +20,18 @@ WITH weather_hourly AS (
         avg(wind_speed_10m_kn) AS avg_wind_kn,
         max(date) AS date_partition
     FROM raw_weather_observations
-    WHERE date >= date_format(current_date - INTERVAL '30' DAY, '%Y-%m-%d')
+    WHERE date >= date_format(current_date - INTERVAL '90' DAY, '%Y-%m-%d')
     GROUP BY port_code, date_trunc('hour', from_iso8601_timestamp(timestamp))
 )
 SELECT
     v.port_code,
     v.observation_hour,
+    v.vessels_at_anchor,
     v.vessels_in_10nm,
     v.vessels_in_50nm,
     v.vessels_in_200nm,
-    v.avg_sog_50nm,
-    coalesce(w.avg_wave_height, 0) AS avg_wave_height,
+    v.avg_speed_50nm,
+    coalesce(w.avg_wave_height, 0) AS avg_wave_height_m,
     coalesce(w.avg_wind_kn, 0)     AS avg_wind_kn,
     hour(v.observation_hour)        AS hour_of_day,
     day_of_week(v.observation_hour) AS day_of_week,

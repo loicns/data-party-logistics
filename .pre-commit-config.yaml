@@ -35,7 +35,6 @@ repos:
             --no-incremental,
             ingestion/,
             serving/,
-            agent/,
           ]
         pass_filenames: false
 

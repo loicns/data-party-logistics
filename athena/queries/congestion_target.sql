@@ -1,11 +1,12 @@
 -- congestion_target
 -- Binary label: is the port congested 24h from now?
 --
--- A port is "congested" when vessels_at_anchor > the trailing-30-day
+-- A port is "congested" when vessels_at_anchor > the trailing-90-day
 -- 75th percentile of that port's anchor count, AND > 2 vessels.
 -- The label is shifted +24h so the model predicts the future.
 
-CREATE TABLE IF NOT EXISTS dpl_pilot.congestion_target
+-- REBUILDABLE: features_lambda drops + clears S3 before this CREATE.
+CREATE TABLE dpl_pilot.congestion_target
 WITH (
     format = 'PARQUET',
     partitioned_by = ARRAY['date_partition'],
@@ -18,7 +19,7 @@ WITH anchor_counts AS (
     SELECT
         port_code,
         observation_hour,
-        vessels_in_10nm AS vessels_at_anchor,  -- proxy: anchored vessels live in 10nm ring
+        vessels_at_anchor,
         date_partition
     FROM dpl_pilot.feature_vessel_inbound_hourly
 ),
@@ -27,7 +28,7 @@ trailing_p75 AS (
         port_code,
         approx_percentile(vessels_at_anchor, 0.75) AS p75_anchor
     FROM anchor_counts
-    WHERE observation_hour >= current_timestamp - INTERVAL '30' DAY
+    WHERE observation_hour >= current_timestamp - INTERVAL '90' DAY
     GROUP BY port_code
 ),
 labeled AS (

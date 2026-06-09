@@ -40,7 +40,7 @@ NOAA (tides)              ┘                              │
 ## The ML
 
 - **Target:** `is_congested_24h` — a port is "congested" when its anchored-vessel count
-  exceeds its trailing-30-day 75th percentile (and is above a small floor). The label is
+  exceeds its trailing-90-day 75th percentile (and is above a small floor). The label is
   shifted **+24h** so the model predicts the future, not the present.
 - **Features:** vessel counts in 10/50/200nm rings, vessels at anchor, average speed,
   max wave height, and cyclical hour-of-day / day-of-week signals.

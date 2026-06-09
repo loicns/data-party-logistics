@@ -11,7 +11,7 @@ import boto3
 
 from serverless.athena import first_row, run_query
 from serverless.metrics import put_metric
-from serverless.ports import PORTS
+from serverless.ports import PORT_TERMINALS, PORTS
 from serverless.s3_health import latest_object_for_prefix, object_age_minutes
 
 
@@ -406,63 +406,25 @@ def _build_port_payload(
         )
 
     # ---------------------------------------------------------
-    # DERIVED HEURISTICS: Virtual Berths and Arrival Schedule
+    # BERTH VIEW — AIS-derived occupancy against REAL terminals.
+    # We know the port's real terminal names (PORT_TERMINALS) and how many
+    # vessels are currently in the berth zone (berthed_count, from AIS). We do
+    # NOT know which vessel is at which terminal, so we never attach a vessel
+    # identity to a named berth. Ports without a verified terminal list emit
+    # an empty array → the dashboard shows its "no berth data" message.
     # ---------------------------------------------------------
-    berth_allocations = []
-    berthed_vessels = [v for v in vessels if v["zone"] == "berth"]
-
-    # Define port-specific terminal names
-    terminal_names = {
-        "NLRTM": [
-            "Euromax Terminal",
-            "ECT Delta",
-            "APM Terminals",
-            "RWG",
-            "Maasvlakte 2",
-            "Botlek",
-        ],
-        "SGSIN": [
-            "Pasir Panjang T1",
-            "Pasir Panjang T2",
-            "Keppel",
-            "Brani",
-            "Tanjong Pagar",
-            "Tuas Mega Port",
-        ],
-        "USLAX": ["Pier 400", "Trapac", "YTI", "WBCT", "Everport", "Fenix Marine"],
-    }
-    port_terminals = terminal_names.get(
-        port_code, [f"Terminal {i}" for i in range(1, 7)]
-    )
-
-    # Create 6 virtual berths for the demo
-    for i in range(1, 7):
-        terminal_name = (
-            port_terminals[i - 1] if i - 1 < len(port_terminals) else f"Terminal {i}"
-        )
-        if i <= len(berthed_vessels):
-            v = berthed_vessels[i - 1]
-            berth_allocations.append(
-                {
-                    "id": f"berth-{i}",
-                    "name": terminal_name,
-                    "status": "occupied",
-                    "vessel": v["name"],
-                    "mmsi": v["mmsi"],
-                    "eta": "Berthed",
-                }
-            )
-        else:
-            berth_allocations.append(
-                {
-                    "id": f"berth-{i}",
-                    "name": terminal_name,
-                    "status": "available",
-                    "vessel": None,
-                    "mmsi": None,
-                    "eta": None,
-                }
-            )
+    port_terminals = PORT_TERMINALS.get(port_code, [])
+    berthed_count = sum(1 for v in vessels if v["zone"] == "berth")
+    berth_allocations = [
+        {
+            "id": f"berth-{i + 1}",
+            "name": terminal_name,
+            # Aggregate occupancy: we show `berthed_count` berths as occupied,
+            # but make no claim about WHICH vessel — identity isn't observable.
+            "status": "occupied" if i < berthed_count else "available",
+        }
+        for i, terminal_name in enumerate(port_terminals)
+    ]
 
     schedule = []
     approaching = [v for v in vessels if v["zone"] in ["approaching", "transit"]]
@@ -512,6 +474,7 @@ def _build_port_payload(
             "avgSpeed": live_avg_speed,
             "maxWave": max_wave,
             "tracked": tracked_count,
+            "berthed": berthed_count,
         },
         "forecast": trend_values[-5:],
         "trend": trend_values,

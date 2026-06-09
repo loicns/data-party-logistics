@@ -9,7 +9,10 @@
 --     --query-execution-context Database=dpl_pilot \
 --     --result-configuration OutputLocation=s3://.../athena/query-results/
 
-CREATE TABLE IF NOT EXISTS dpl_pilot.feature_vessel_inbound_hourly
+-- REBUILDABLE: features_lambda runs DROP TABLE + clears the S3 prefix before
+-- this CREATE, so a re-run refreshes data instead of silently skipping. Run
+-- manually only after dropping the table and emptying its external_location.
+CREATE TABLE dpl_pilot.feature_vessel_inbound_hourly
 WITH (
     format = 'PARQUET',
     partitioned_by = ARRAY['date_partition'],
@@ -41,7 +44,7 @@ hourly_positions AS (
         max_by(sog,    from_iso8601_timestamp(received_at)) AS sog,
         max(date) AS date_partition
     FROM raw_ais_positions
-    WHERE date >= date_format(current_date - INTERVAL '30' DAY, '%Y-%m-%d')
+    WHERE date >= date_format(current_date - INTERVAL '90' DAY, '%Y-%m-%d')
     GROUP BY mmsi, date_trunc('hour', from_iso8601_timestamp(received_at))
 ),
 scored AS (
@@ -64,7 +67,8 @@ SELECT
     sum(CASE WHEN distance_nm <= 10  THEN 1 ELSE 0 END) AS vessels_in_10nm,
     sum(CASE WHEN distance_nm <= 50  THEN 1 ELSE 0 END) AS vessels_in_50nm,
     sum(CASE WHEN distance_nm <= 200 THEN 1 ELSE 0 END) AS vessels_in_200nm,
-    avg(CASE WHEN distance_nm <= 50  THEN sog END)      AS avg_sog_50nm,
+    sum(CASE WHEN distance_nm <= 10 AND sog < 2 THEN 1 ELSE 0 END) AS vessels_at_anchor,
+    avg(CASE WHEN distance_nm <= 50  THEN sog END) AS avg_speed_50nm,
     date_partition
 FROM scored
 WHERE distance_nm <= 200
