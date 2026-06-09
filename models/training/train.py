@@ -1,7 +1,6 @@
 import io
 import os
 import pickle
-from datetime import datetime
 
 import awswrangler as wr
 import boto3
@@ -11,26 +10,15 @@ import pandas as pd
 from dotenv import load_dotenv
 from sklearn.metrics import classification_report, roc_auc_score
 
+from models.features import FEATURES, TARGET
+
 load_dotenv()
 
 BUCKET = os.environ["S3_BUCKET_RAW"]
 REGION = os.getenv("AWS_REGION", "eu-west-3")
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-S3_OBJECT_KEY = f"models/port_congestion/model_lightgbm_{timestamp}.pkl"
+S3_OBJECT_KEY = "models/port_congestion/model_lightgbm.pkl"
 
 boto3.setup_default_session(region_name=REGION)
-
-FEATURES = [
-    "vessels_in_10nm",
-    "vessels_in_50nm",
-    "vessels_in_200nm",
-    "avg_speed_50nm",
-    "vessels_at_anchor",
-    "max_wave_height_m",
-    "hour_of_day",
-    "day_of_week",
-]
-TARGET = "is_congested_24h"
 
 df = wr.s3.read_parquet(
     path=f"s3://{BUCKET}/features/training/port_congestion/latest.parquet"

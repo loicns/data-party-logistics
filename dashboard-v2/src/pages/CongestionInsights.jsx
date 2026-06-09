@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useData } from '../context/DataContext';
+import { usePredictions } from '../hooks/usePredictions';
 
 const ZONE_META = {
   berth:      { color: '#2dd96f', label: 'Berthed' },
@@ -15,7 +16,10 @@ function congestionColor(score) {
 }
 
 export default function CongestionInsights() {
-  const { port, trendLabels, metadata } = useData();
+  const { port, trendLabels, metadata, currentPortCode } = useData();
+  const predictions = usePredictions();
+  const forecast = predictions?.[currentPortCode] ?? null;
+
   const [zoneFilter, setZoneFilter] = useState('all');
 
   if (!port) return null;
@@ -72,6 +76,18 @@ export default function CongestionInsights() {
           { label: 'At Anchor', value: metrics.waiting, unit: 'waiting', color: 'text-[#f7b23b]' },
           { label: 'Congestion Score', value: `${metrics.congestionPct}%`, unit: 'of capacity', color: metrics.congestionPct > 65 ? 'text-error' : metrics.congestionPct > 35 ? 'text-[#f7b23b]' : 'text-[#2dd96f]' },
           { label: 'Berth Utilisation', value: `${berthUtilPct}%`, unit: `${occupiedCount}/${berthAllocations.length} berths`, color: berthUtilPct > 80 ? 'text-error' : 'text-primary' },
+          {
+          label: '24h Forecast',
+          value: forecast ? `${Math.round(forecast.probability * 100)}%` : '—',
+          unit: forecast
+            ? (forecast.prediction ? 'Congested ●' : 'Clear ●')
+            : 'no model data',
+          color: forecast
+            ? (forecast.probability >= 0.65 ? 'text-error'
+              : forecast.probability >= 0.35 ? 'text-[#f7b23b]'
+              : 'text-[#2dd96f]')
+            : 'text-on-surface-variant',
+        },
         ].map(({ label, value, unit, color }) => (
           <div key={label} className="bg-surface-container border border-outline-variant/50 rounded-xl p-4 flex flex-col gap-1 shadow-sm">
             <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wide">{label}</span>
