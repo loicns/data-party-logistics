@@ -11,7 +11,7 @@ FEATURES = [
     "vessels_in_200nm",
     "avg_speed_50nm",
     "vessels_at_anchor",
-    "max_wave_height_m",
+    "avg_wave_height_m",
     "hour_of_day",
     "day_of_week",
 ]
