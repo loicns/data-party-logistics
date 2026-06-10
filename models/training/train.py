@@ -1,6 +1,4 @@
-import io
 import os
-import pickle
 
 import awswrangler as wr
 import boto3
@@ -9,6 +7,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.model_selection import train_test_split
 
 from models.features import FEATURES, TARGET
 
@@ -16,7 +15,7 @@ load_dotenv()
 
 BUCKET = os.environ["S3_BUCKET_RAW"]
 REGION = os.getenv("AWS_REGION", "eu-west-3")
-S3_OBJECT_KEY = "models/port_congestion/model_lightgbm.pkl"
+S3_OBJECT_KEY = "models/port_congestion/model.txt"
 
 boto3.setup_default_session(region_name=REGION)
 
@@ -27,16 +26,12 @@ df = wr.s3.read_parquet(
 df["observation_hour"] = pd.to_datetime(df["observation_hour"])
 df = df.sort_values(by="observation_hour").reset_index(drop=True)
 
-split_idx = int(len(df) * 0.80)
+X = df[FEATURES]
+y = df[TARGET]
 
-df_train = df.iloc[:split_idx]
-df_test = df.iloc[split_idx:]
-
-X_train = df_train[FEATURES]
-X_test = df_test[FEATURES]
-
-y_train = df_train[TARGET]
-y_test = df_test[TARGET]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.20, random_state=42, stratify=y
+)
 
 print(f"TRAIN SAMPLE SIZE: X: {X_train.shape}; y: {y_train.shape}")
 print(f"TEST SAMPLE SIZE: X: {X_test.shape}; y: {y_test.shape}")
@@ -112,20 +107,17 @@ print(importance_df.head(10).to_string(index=False))
 # 4. SAVING MODEL TO S3
 # ==========================================
 
-# Initialize standard boto3 client
+# Serialize the native LightGBM booster as text — the portable, version-stable
+# format. Loading it at serving time needs only lightgbm (no scikit-learn/scipy),
+# which keeps the predict Lambda package under Lambda's 250 MB unzipped limit.
 s3_client = boto3.client("s3")
-
-# Serialize model straight to an in-memory binary byte stream (saves local disk IO)
-model_buffer = io.BytesIO()
-pickle.dump(model, model_buffer)
-model_buffer.seek(0)  # Reset buffer pointer to start before uploading
+booster_text = model.booster_.model_to_string()
 
 try:
-    # Stream the memory buffer directly up to S3
-    s3_client.upload_fileobj(Fileobj=model_buffer, Bucket=BUCKET, Key=S3_OBJECT_KEY)
+    s3_client.put_object(
+        Bucket=BUCKET, Key=S3_OBJECT_KEY, Body=booster_text.encode("utf-8")
+    )
     print(f"🚀 Successfully uploaded model to s3://{BUCKET}/{S3_OBJECT_KEY}")
 except Exception as e:
     print(f"❌ Failed to upload model to S3. Error: {e}")
     raise
-finally:
-    model_buffer.close()  # Clean up memory buffer allocation

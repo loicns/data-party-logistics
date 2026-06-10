@@ -47,7 +47,7 @@ Globals:
   Function:
     Runtime: python3.12
     Architectures:
-      - x86_64
+      - arm64
     CodeUri: .
     MemorySize: 512
     Timeout: 120

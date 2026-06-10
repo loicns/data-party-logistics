@@ -21,7 +21,7 @@ SELECT
   f.vessels_in_200nm,
   f.vessels_at_anchor,
   f.avg_speed_50nm,
-  f.max_wave_height_m,
+  f.avg_wave_height_m,
   f.hour_of_day,
   f.day_of_week,
   t.is_congested_24h

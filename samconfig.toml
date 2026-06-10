@@ -1,0 +1,20 @@
+version = 0.1
+
+# Deploy mechanics only — NO parameter values live here, so this file is safe to
+# commit. The stack parameters (incl. the AISStream secret from .env) are passed
+# by ./deploy.sh.
+#
+# ⚠️  Do NOT run a bare `sam deploy` — without the parameters it would blank
+#     AisStreamApiKey and break AIS ingestion. Always deploy with ./deploy.sh.
+
+[default.deploy.parameters]
+stack_name = "dpl-serverless-pilot"
+resolve_s3 = true
+s3_prefix = "dpl-serverless-pilot"
+region = "eu-west-3"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+
+[default.global.parameters]
+region = "eu-west-3"

@@ -38,14 +38,14 @@ WITH port_coords AS (
 hourly_positions AS (
     SELECT
         mmsi,
-        date_trunc('hour', from_iso8601_timestamp(received_at)) AS observation_hour,
+        date_trunc('hour', CAST(from_iso8601_timestamp(received_at) AS timestamp)) AS observation_hour,
         max_by(lat,    from_iso8601_timestamp(received_at)) AS lat,
         max_by(lon,    from_iso8601_timestamp(received_at)) AS lon,
         max_by(sog,    from_iso8601_timestamp(received_at)) AS sog,
         max(date) AS date_partition
     FROM raw_ais_positions
     WHERE date >= date_format(current_date - INTERVAL '90' DAY, '%Y-%m-%d')
-    GROUP BY mmsi, date_trunc('hour', from_iso8601_timestamp(received_at))
+    GROUP BY mmsi, date_trunc('hour', CAST(from_iso8601_timestamp(received_at) AS timestamp))
 ),
 scored AS (
     SELECT

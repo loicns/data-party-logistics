@@ -28,7 +28,7 @@ trailing_p75 AS (
         port_code,
         approx_percentile(vessels_at_anchor, 0.75) AS p75_anchor
     FROM anchor_counts
-    WHERE observation_hour >= current_timestamp - INTERVAL '90' DAY
+    WHERE observation_hour >= CAST(current_timestamp AS timestamp) - INTERVAL '90' DAY
     GROUP BY port_code
 ),
 labeled AS (

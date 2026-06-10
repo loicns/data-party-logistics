@@ -15,13 +15,13 @@ AS
 WITH weather_hourly AS (
     SELECT
         port_code,
-        date_trunc('hour', from_iso8601_timestamp(timestamp)) AS observation_hour,
+        date_trunc('hour', CAST(from_iso8601_timestamp(timestamp) AS timestamp)) AS observation_hour,
         avg(wave_height_m) AS avg_wave_height,
-        avg(wind_speed_10m_kn) AS avg_wind_kn,
+        avg(wind_wave_height_m) AS avg_wind_kn,
         max(date) AS date_partition
     FROM raw_weather_observations
     WHERE date >= date_format(current_date - INTERVAL '90' DAY, '%Y-%m-%d')
-    GROUP BY port_code, date_trunc('hour', from_iso8601_timestamp(timestamp))
+    GROUP BY port_code, date_trunc('hour', CAST(from_iso8601_timestamp(timestamp) AS timestamp))
 )
 SELECT
     v.port_code,

@@ -35,4 +35,16 @@ build-FeaturesFunction:
 # other functions lean.
 build-PredictFunction:
 	cp -r serverless models $(ARTIFACTS_DIR)/
-	python3.12 -m pip install -r requirements-predict.txt -t $(ARTIFACTS_DIR) --upgrade --quiet
+	# lightgbm's lib_lightgbm.so links against libgomp (OpenMP), which the minimal
+	# Lambda runtime doesn't ship. Vendor the Linux arm64 libgomp at the package
+	# root — /var/task is on Lambda's LD_LIBRARY_PATH, so the loader finds it.
+	cp vendor/lib/libgomp.so.1 $(ARTIFACTS_DIR)/
+	# Native ML wheels (lightgbm/numpy) must be Linux arm64 to run on Lambda.
+	# Fetch them cross-platform from a macOS host — no Docker needed.
+	python3.12 -m pip install -r requirements-predict.txt -t $(ARTIFACTS_DIR) \
+		--no-deps \
+		--platform manylinux2014_aarch64 \
+		--implementation cp \
+		--python-version 3.12 \
+		--only-binary=:all: \
+		--upgrade --quiet

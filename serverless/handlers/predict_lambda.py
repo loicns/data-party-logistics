@@ -6,9 +6,12 @@ Runs hourly (after features_lambda refreshes the gold tables):
   3. write predictions.json to the public dashboard bucket
   4. invalidate CloudFront so the dashboard sees it immediately
 
-Deps are heavy (lightgbm + scikit-learn to unpickle the model), installed from
-requirements-predict.txt via the Makefile `build-PredictFunction` target and
-built with `sam build --use-container` for correct Linux binaries.
+The model ships as a native LightGBM booster (text format), so serving needs
+lightgbm + numpy + scipy (lightgbm imports scipy at load) but NOT scikit-learn.
+Dropping scikit-learn keeps the package under Lambda's 250 MB unzipped limit.
+Deps come from requirements-predict.txt via the
+Makefile `build-PredictFunction` target, which fetches Linux arm64 wheels with
+pip --platform (no container build needed).
 Querying uses the lightweight boto3 Athena helper (no pandas/awswrangler), so
 the package only carries the model libraries.
 """
@@ -17,12 +20,12 @@ from __future__ import annotations
 
 import json
 import os
-import pickle
-import tempfile
 from datetime import UTC, datetime
 from typing import Any
 
 import boto3
+import lightgbm as lgb
+import numpy as np
 from models.features import FEATURES
 
 from serverless.athena import run_query
@@ -32,19 +35,18 @@ from serverless.ports import PORTS
 DATA_BUCKET = os.environ["DATA_BUCKET_NAME"]
 DATABASE = os.environ["ATHENA_DATABASE"]
 OUTPUT_LOCATION = os.environ["ATHENA_OUTPUT_LOCATION"]
-MODEL_KEY = os.getenv("MODEL_OBJECT_KEY", "models/port_congestion/model_lightgbm.pkl")
+MODEL_KEY = os.getenv("MODEL_OBJECT_KEY", "models/port_congestion/model.txt")
 PUBLIC_BUCKET = os.getenv("PUBLIC_DASHBOARD_BUCKET_NAME", "")
 PREDICTIONS_KEY = os.getenv("PREDICTIONS_OBJECT_KEY", "predictions.json")
 DISTRIBUTION_ID = os.getenv("PUBLIC_DASHBOARD_DISTRIBUTION_ID", "")
 
 
-def load_model() -> Any:
-    """Download + deserialize the model from S3 (once per invocation)."""
+def load_model() -> lgb.Booster:
+    """Download the native LightGBM booster text from S3 and load it."""
     s3 = boto3.client("s3")
-    with tempfile.NamedTemporaryFile(delete=True) as tmp:
-        s3.download_fileobj(DATA_BUCKET, MODEL_KEY, tmp)
-        tmp.seek(0)
-        return pickle.load(tmp)
+    obj = s3.get_object(Bucket=DATA_BUCKET, Key=MODEL_KEY)
+    model_str = obj["Body"].read().decode("utf-8")
+    return lgb.Booster(model_str=model_str)
 
 
 def _latest_row(port_code: str) -> dict[str, str] | None:
@@ -63,16 +65,19 @@ def _latest_row(port_code: str) -> dict[str, str] | None:
     return rows[0] if rows else None
 
 
-def predict(model: Any, port_code: str) -> dict[str, Any] | None:
+def predict(model: lgb.Booster, port_code: str) -> dict[str, Any] | None:
     """Score one port. Returns None if there is no data for it."""
     row = _latest_row(port_code)
     if row is None:
         return None
 
     # Build the feature vector in the EXACT training order; missing -> 0.0.
-    features = [[float(row.get(name) or 0.0) for name in FEATURES]]
-    prediction = int(model.predict(features)[0])
-    probability = float(model.predict_proba(features)[0][1])
+    features = np.array(
+        [[float(row.get(name) or 0.0) for name in FEATURES]], dtype=float
+    )
+    # Binary booster.predict returns the positive-class probability directly.
+    probability = float(model.predict(features)[0])
+    prediction = int(probability >= 0.5)
 
     return {
         "port_code": port_code,

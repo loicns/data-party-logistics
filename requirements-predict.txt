@@ -1,6 +1,11 @@
 # Runtime deps for the predict Lambda (zip), installed by the Makefile
 # `build-PredictFunction` target. boto3 is provided by the Lambda runtime.
-# Build with `sam build --use-container` so the native wheels are Linux x86_64.
+# The Makefile fetches Linux arm64 wheels via pip --platform, so a plain
+# `sam build` (no container) produces a Lambda-compatible package.
+# Installed with --no-deps (see Makefile) to keep scikit-learn out and stay
+# under Lambda's 250 MB unzipped limit. lightgbm>=4.6 imports scipy at load time,
+# so scipy is required; numpy + scipy are listed explicitly because --no-deps
+# skips transitive deps. (Dropping only scikit-learn is what fits under 250 MB.)
 lightgbm>=4.5
-scikit-learn>=1.5
 numpy>=1.26
+scipy>=1.13
