@@ -6,6 +6,9 @@
 *.key
 secrets/
 
+# ---- Claude Code local session data (per-developer, not shared) ----
+.claude/
+
 # ---- AWS ----
 .aws/
 terraform.tfvars
