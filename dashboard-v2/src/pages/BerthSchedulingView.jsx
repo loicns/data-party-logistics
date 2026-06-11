@@ -3,12 +3,18 @@ import { useData } from '../context/DataContext';
 export default function BerthSchedulingView() {
   const { port } = useData();
   const berths = port?.berthAllocations || [];
+  const berthed = port?.metrics?.berthed ?? 0;
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
       <div className="h-16 border-b border-outline-variant bg-surface-container flex items-center justify-between px-container-padding flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <h2 className="font-title-sm text-title-sm">Live Berth Allocation (Derived)</h2>
+        <div className="flex flex-col">
+          <h2 className="font-title-sm text-title-sm">Berth Occupancy (AIS-derived)</h2>
+          {berths.length > 0 && (
+            <span className="text-xs text-on-surface-variant">
+              {berthed} of {berths.length} berths occupied · vessel-to-berth mapping not tracked
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -48,16 +54,15 @@ export default function BerthSchedulingView() {
               </div>
 
               {berth.status === 'occupied' ? (
-                <div className="bg-surface p-3 rounded border border-outline-variant">
-                  <div className="text-sm text-on-surface-variant mb-1">Currently Moored:</div>
-                  <div className="font-data-mono text-data-mono font-bold text-on-surface text-lg truncate">
-                    {berth.vessel}
+                <div className="bg-surface p-3 rounded border border-outline-variant flex flex-col items-center justify-center h-[88px] text-center">
+                  <div className="text-sm text-on-surface">Vessel in berth zone</div>
+                  <div className="text-xs text-on-surface-variant mt-1">
+                    identity not mapped to terminal
                   </div>
-                  <div className="text-xs text-on-surface-variant mt-1">MMSI: {berth.mmsi}</div>
                 </div>
               ) : (
                 <div className="bg-surface/50 p-3 rounded border border-outline-variant border-dashed flex items-center justify-center h-[88px]">
-                  <span className="text-on-surface-variant text-sm">Ready for next arrival</span>
+                  <span className="text-on-surface-variant text-sm">No vessel detected</span>
                 </div>
               )}
             </div>

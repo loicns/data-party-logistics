@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 
 // Derive the predictions URL from the SAME CloudFront base as the dashboard data,
 // so it always sits next to demo-data and needs no extra env var.
-//   VITE_DATA_URL = https://dxxxx.cloudfront.net/api/v1/demo-data.json
-//        ->         https://dxxxx.cloudfront.net/api/v1/predictions.json
+//   VITE_DATA_URL = https://dxxxx.cloudfront.net/demo-data.js
+//        ->         https://dxxxx.cloudfront.net/predictions.json
+// The data artifact is published as demo-data.js (not .json), so match both
+// extensions — otherwise the replace is a no-op and predictions never load.
 // In local dev (VITE_DATA_URL unset) -> /predictions.json (public/ fixture).
 const DATA_URL = import.meta.env.VITE_DATA_URL ?? null;
 const PREDICTIONS_URL = DATA_URL
-  ? DATA_URL.replace(/demo-data\.json(\?.*)?$/, 'predictions.json$1')
+  ? DATA_URL.replace(/demo-data\.js(?:on)?(\?.*)?$/, 'predictions.json$1')
   : '/predictions.json';
 
 // Fetches predictions — a SEPARATE source from DataContext.

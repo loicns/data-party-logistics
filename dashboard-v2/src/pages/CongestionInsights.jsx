@@ -168,11 +168,6 @@ export default function CongestionInsights() {
                 <span className={`font-bold text-body-sm ${b.status === 'occupied' ? 'text-[#2dd96f]' : 'text-on-surface-variant'}`}>
                   {b.status === 'occupied' ? '● Occupied' : '○ Available'}
                 </span>
-                {b.vessel && (
-                  <span className="font-data-mono text-[10px] text-on-surface-variant truncate" title={b.vessel}>
-                    {b.vessel}
-                  </span>
-                )}
               </div>
             ))}
           </div>
