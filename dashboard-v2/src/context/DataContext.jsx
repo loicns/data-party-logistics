@@ -50,42 +50,50 @@ function normalizePort(port) {
     ? [...port.vessels].sort(compareVessels)
     : [];
 
-  const trackedFromVessels = vessels.length;
-  const waiting = vessels.filter((vessel) => vessel.zone === 'anchor').length;
-  const berthed = vessels.filter((vessel) => vessel.zone === 'berth').length;
-  const avgSpeed = trackedFromVessels
+  // The export computes metrics from the FULL vessel set, then caps the
+  // serialized list (vesselsTotal carries the real count). Backend metrics
+  // are therefore authoritative; we only derive from the list as a fallback
+  // for older exports that lacked these fields.
+  const m = port.metrics ?? {};
+  const derivedWaiting = vessels.filter((vessel) => vessel.zone === 'anchor').length;
+  const derivedBerthed = vessels.filter((vessel) => vessel.zone === 'berth').length;
+  const derivedAvgSpeed = vessels.length
     ? Number(
-        (
-          vessels.reduce((sum, vessel) => sum + toNumber(vessel.sog), 0) / trackedFromVessels
-        ).toFixed(1)
+        (vessels.reduce((sum, vessel) => sum + toNumber(vessel.sog), 0) / vessels.length).toFixed(1)
       )
-    : toNumber(port.metrics?.avgSpeed);
-  const derivedCongestionPct = berthed + waiting > 0
-    ? Math.round((waiting / (berthed + waiting)) * 100)
-    : toNumber(port.metrics?.congestionPct);
+    : 0;
   const schedule = buildDerivedSchedule(vessels);
 
   return {
     ...port,
     vessels,
+    vesselsTotal: toNumber(port.vesselsTotal, vessels.length),
     schedule,
     metrics: {
-      ...port.metrics,
-      tracked: Math.max(toNumber(port.metrics?.tracked), trackedFromVessels),
-      waiting,
-      avgSpeed,
-      congestionPct: waiting > 0 ? derivedCongestionPct : toNumber(port.metrics?.congestionPct),
-      maxWave: toNumber(port.metrics?.maxWave),
+      ...m,
+      tracked: toNumber(m.tracked, vessels.length),
+      waiting: toNumber(m.waiting, derivedWaiting),
+      berthed: toNumber(m.berthed, derivedBerthed),
+      avgSpeed: toNumber(m.avgSpeed, derivedAvgSpeed),
+      congestionPct: toNumber(m.congestionPct),
+      maxWave: toNumber(m.maxWave),
     },
   };
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+// One retry with backoff: a transient CloudFront/network blip should not
+// blank the whole dashboard.
+async function fetchJson(url, retries = 1) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      if (attempt >= retries) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+    }
   }
-  return response.json();
 }
 
 // VITE_DATA_URL  → set in Vercel env vars to your CloudFront JSON URL

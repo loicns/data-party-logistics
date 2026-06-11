@@ -12,7 +12,7 @@ export default function BerthSchedulingView() {
           <h2 className="font-title-sm text-title-sm">Berth Occupancy (AIS-derived)</h2>
           {berths.length > 0 && (
             <span className="text-xs text-on-surface-variant">
-              {berthed} of {berths.length} berths occupied · vessel-to-berth mapping not tracked
+              {berthed} of {berths.length} berths occupied (aggregate) · which specific berth is occupied is not observable from AIS — card positions are illustrative
             </span>
           )}
         </div>

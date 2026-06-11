@@ -1,16 +1,56 @@
-# React + Vite
+# DPL Dashboard (dashboard-v2)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite dashboard for the Data Party Logistics port-congestion pilot.
+Reads two static artifacts from CloudFront — no backend API in production.
 
-Currently, two official plugins are available:
+## Data sources
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Artifact | Produced by | Contents |
+|---|---|---|
+| `demo-data.js` | export Lambda (hourly :25) | vessels, metrics, trend, berth aggregate |
+| `predictions.json` | predict Lambda (hourly :30) | LightGBM 24h congestion forecast |
 
-## React Compiler
+The predictions URL is **derived** from `VITE_DATA_URL` by filename swap
+(`demo-data.js` → `predictions.json`), so both must live under the same
+CloudFront prefix. Field meanings & provenance: `../docs/blueprint/10-DATA-DICTIONARY.md`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Environment
 
-## Expanding the ESLint configuration
+| Var | Where | Value |
+|---|---|---|
+| `VITE_DATA_URL` | Vercel env + `.env.production` | `https://dz4lgcial54jx.cloudfront.net/demo-data.js` |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Unset in local dev → falls back to `public/demo-data.js` fixture / local API proxy.
+
+## Develop / build
+
+```bash
+npm ci
+npm run dev      # local dev server
+npm run lint     # eslint
+npm run build    # production build (route-level code splitting)
+```
+
+## Deploy
+
+Push to `main` — the Vercel git integration builds and promotes automatically
+(project `dpl-dashboard`, root directory `dashboard-v2`). CLI alternative:
+run `vercel --prod` from the **repo root**, not from inside `dashboard-v2`
+(the project's root-directory setting would double the path).
+
+## Page map
+
+| Route | Page | Data |
+|---|---|---|
+| `/` | Operations dashboard | metrics, map, Active Traffic preview (6) |
+| `/map` | Traffic map | all surfaced vessels (≤250/port), zone filters |
+| `/schedule` | Traffic board | filterable table, heuristic ETAs (`est.`) |
+| `/berth` | Berth occupancy | aggregate only — no vessel-to-berth claims |
+| `/insights` | Congestion insights | trend + **model** 24h forecast card |
+| `/predictive` | Predictive analysis | **model** forecast hero + observed trend |
+
+## Honesty rules (enforced in code)
+
+- Every number is real, derived, or labelled `est.` — see the data dictionary.
+- The staleness banner appears when data is older than the 2 h SLA.
+- No decorative/non-functional controls.

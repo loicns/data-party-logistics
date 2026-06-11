@@ -28,9 +28,18 @@ function matchesMovement(vessel, movementFilter) {
   return true;
 }
 
+// Numeric ETA proxy in hours — the same distance÷speed heuristic the export
+// uses to render the ETA text. A string sort on "HH:MM"-ish text mis-orders
+// mixed formats; vessels that aren't making way sort last.
+function etaHours(vessel) {
+  const sog = toNumber(vessel.sog);
+  if (sog < 0.5) return Number.POSITIVE_INFINITY;
+  return toNumber(vessel.dist) / sog;
+}
+
 function compareRows(left, right, sortBy) {
   if (sortBy === 'distance') return toNumber(left.dist) - toNumber(right.dist);
-  if (sortBy === 'eta') return left.eta.localeCompare(right.eta);
+  if (sortBy === 'eta') return etaHours(left) - etaHours(right);
   if (sortBy === 'speed') return toNumber(right.sog) - toNumber(left.sog);
   return left.name.localeCompare(right.name);
 }
@@ -129,7 +138,7 @@ export default function ArrivalDepartureSchedule() {
             className="border border-outline-variant bg-surface-container text-on-surface rounded-lg px-3 py-2 font-body-sm text-body-sm outline-none focus:border-primary"
           >
             <option value="distance">Sort by distance</option>
-            <option value="eta">Sort by ETA text</option>
+            <option value="eta">Sort by ETA (est.)</option>
             <option value="speed">Sort by speed</option>
             <option value="name">Sort by vessel name</option>
           </select>
@@ -146,7 +155,7 @@ export default function ArrivalDepartureSchedule() {
                 <th className="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 font-semibold">Zone</th>
                 <th className="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 font-semibold">Distance</th>
                 <th className="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 font-semibold">Speed</th>
-                <th className="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 font-semibold">ETA</th>
+                <th className="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 font-semibold" title="Estimated from distance ÷ speed — not a model prediction">ETA (est.)</th>
                 <th className="font-label-caps text-label-caps text-on-surface-variant py-3 px-4 font-semibold text-right">Status</th>
               </tr>
             </thead>

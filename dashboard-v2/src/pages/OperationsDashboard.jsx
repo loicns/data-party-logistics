@@ -174,7 +174,7 @@ export default function OperationsDashboard() {
                 <span className="material-symbols-outlined text-primary text-[20px]">format_list_bulleted</span>
                 Active Traffic
               </h2>
-              <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded font-data-mono text-[10px] border border-primary/30">{port.vessels.length} TOTAL</span>
+              <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded font-data-mono text-[10px] border border-primary/30">{port.vesselsTotal ?? port.vessels.length} TRACKED</span>
             </div>
 
             <div className="p-4 space-y-3">
@@ -210,7 +210,7 @@ export default function OperationsDashboard() {
               className="mt-auto p-3 border-t border-outline-variant/30 bg-surface-container-low rounded-b-xl text-center font-label-caps text-label-caps text-primary hover:bg-surface-variant transition-colors flex items-center justify-center gap-1"
             >
               {hiddenCount > 0
-                ? `View all ${port.vessels.length} vessels in Traffic`
+                ? `View ${port.vessels.length} surfaced of ${port.vesselsTotal ?? port.vessels.length} tracked in Traffic`
                 : 'Open Traffic map'}
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </Link>

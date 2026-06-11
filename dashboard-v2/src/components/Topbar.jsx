@@ -70,18 +70,6 @@ export default function Topbar({ onMenuClick }) {
             </div>
           )}
         </div>
-        <button className="hidden sm:flex bg-primary text-on-primary p-2 rounded-full items-center justify-center hover:bg-primary-fixed transition-colors" title="Create Alert">
-          <span className="material-symbols-outlined text-[20px]">add</span>
-        </button>
-        <div className="flex items-center gap-2 border-l border-outline-variant/30 pl-4 ml-2">
-          <button className="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant relative">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full border border-background"></span>
-          </button>
-          <button className="text-on-surface-variant hover:text-primary transition-colors p-2 rounded-full hover:bg-surface-variant">
-            <span className="material-symbols-outlined">person</span>
-          </button>
-        </div>
       </div>
     </header>
   );
