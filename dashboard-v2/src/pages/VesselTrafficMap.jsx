@@ -191,12 +191,23 @@ export default function VesselTrafficMap() {
             </div>
 
             <div className="mt-auto pt-4 flex flex-col gap-2">
-              <button className="w-full bg-primary text-on-primary hover:bg-primary-fixed transition-colors py-2 rounded font-label-caps text-label-caps text-center">
+              <button
+                disabled
+                title="Not available — DPL is read-only AIS analytics, not a vessel control system"
+                className="w-full bg-surface-variant text-on-surface-variant py-2 rounded font-label-caps text-label-caps text-center cursor-not-allowed opacity-60"
+              >
                 HAIL VESSEL (VHF 16)
               </button>
-              <button className="w-full bg-transparent border border-outline-variant text-on-surface hover:bg-surface-variant transition-colors py-2 rounded font-label-caps text-label-caps text-center">
+              <button
+                disabled
+                title="Not available — berth/pilot assignment is out of scope (AIS cannot observe it)"
+                className="w-full bg-transparent border border-outline-variant text-on-surface-variant py-2 rounded font-label-caps text-label-caps text-center cursor-not-allowed opacity-60"
+              >
                 ASSIGN PILOT
               </button>
+              <p className="text-[10px] text-on-surface-variant/70 text-center pt-1">
+                Read-only analytics · control actions out of scope
+              </p>
             </div>
           </div>
         </aside>

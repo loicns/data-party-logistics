@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+// How many vessels to preview on the dashboard before linking out to the full
+// Traffic map. Keeps the card scannable instead of a long internal scroll.
+const PREVIEW_COUNT = 6;
 
 export default function OperationsDashboard() {
   const { port, metadata } = useData();
@@ -47,6 +52,18 @@ export default function OperationsDashboard() {
   if (!port) return null;
   const m = port.metrics;
 
+  // Derived, data-bound values — no hardcoded gauge widths or fixed severity.
+  const previewVessels = port.vessels.slice(0, PREVIEW_COUNT);
+  const hiddenCount = Math.max(port.vessels.length - PREVIEW_COUNT, 0);
+  const berthedShare = m.tracked > 0 ? Math.round((m.berthed / m.tracked) * 100) : 0;
+  const wavePct = Math.min((m.maxWave / 5) * 100, 100); // 5m ≈ full scale
+  const anchorSeverity =
+    m.waiting === 0
+      ? { label: 'No vessels waiting', color: 'text-secondary', icon: 'check_circle', bar: 'bg-secondary' }
+      : m.waiting >= 10
+        ? { label: 'High congestion', color: 'text-error', icon: 'warning', bar: 'bg-error' }
+        : { label: 'Moderate queue', color: 'text-tertiary', icon: 'info', bar: 'bg-tertiary' };
+
   return (
     <>
       <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -72,12 +89,12 @@ export default function OperationsDashboard() {
               <span className="font-display-lg text-display-lg text-on-surface">{m.tracked}</span>
               <span className="font-body-md text-body-md text-on-surface-variant">active</span>
             </div>
-            <div className="mt-2 flex items-center gap-1 text-secondary font-body-sm text-body-sm">
-              <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-              <span>Live updates</span>
+            <div className="mt-2 flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm">
+              <span className="material-symbols-outlined text-[14px]">anchor</span>
+              <span className="truncate">{m.berthed} berthed · {m.waiting} waiting</span>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
-              <div className="h-full bg-primary w-[100%]"></div>
+              <div className="h-full bg-primary" style={{ width: `${berthedShare}%` }}></div>
             </div>
           </div>
           {/* Metric 2 */}
@@ -95,7 +112,7 @@ export default function OperationsDashboard() {
               <span className="truncate">Overall pressure</span>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
-              <div className="h-full bg-tertiary w-[30%]"></div>
+              <div className="h-full bg-tertiary" style={{ width: `${Math.min(m.congestionPct, 100)}%` }}></div>
             </div>
           </div>
           {/* Metric 3 */}
@@ -105,15 +122,15 @@ export default function OperationsDashboard() {
               <span className="material-symbols-outlined text-error text-[20px]">anchor</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="font-display-lg text-display-lg text-on-surface text-error">{m.waiting}</span>
+              <span className={`font-display-lg text-display-lg ${anchorSeverity.color}`}>{m.waiting}</span>
               <span className="font-body-md text-body-md text-on-surface-variant">waiting</span>
             </div>
-            <div className="mt-2 flex items-center gap-1 text-error font-body-sm text-body-sm">
-              <span className="material-symbols-outlined text-[14px]">warning</span>
-              <span className="truncate">High congestion</span>
+            <div className={`mt-2 flex items-center gap-1 ${anchorSeverity.color} font-body-sm text-body-sm`}>
+              <span className="material-symbols-outlined text-[14px]">{anchorSeverity.icon}</span>
+              <span className="truncate">{anchorSeverity.label}</span>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
-              <div className="h-full bg-error" style={{ width: `${Math.min(m.waiting * 10, 100)}%` }}></div>
+              <div className={`h-full ${anchorSeverity.bar}`} style={{ width: `${Math.min(m.waiting * 10, 100)}%` }}></div>
             </div>
           </div>
           {/* Metric 4 */}
@@ -131,7 +148,7 @@ export default function OperationsDashboard() {
               <span className="truncate">Conditions</span>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
-              <div className="h-full bg-secondary w-[40%]"></div>
+              <div className="h-full bg-secondary" style={{ width: `${wavePct}%` }}></div>
             </div>
           </div>
         </div>
@@ -151,7 +168,7 @@ export default function OperationsDashboard() {
         </div>
 
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="bg-surface-container border border-outline-variant/50 rounded-xl flex flex-col flex-1 h-[600px] shadow-sm">
+          <div className="bg-surface-container border border-outline-variant/50 rounded-xl flex flex-col shadow-sm">
             <div className="p-4 border-b border-outline-variant/30 bg-surface-container-low rounded-t-xl flex justify-between items-center">
               <h2 className="font-title-sm text-title-sm text-on-surface flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[20px]">format_list_bulleted</span>
@@ -159,31 +176,44 @@ export default function OperationsDashboard() {
               </h2>
               <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded font-data-mono text-[10px] border border-primary/30">{port.vessels.length} TOTAL</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {port.vessels.map((vessel, idx) => (
-                <div key={idx} className="bg-surface rounded-lg p-3 border border-outline-variant/50 hover:border-primary/50 transition-colors cursor-pointer group flex flex-col gap-2">
+
+            <div className="p-4 space-y-3">
+              {previewVessels.length === 0 && (
+                <div className="text-center py-10 text-on-surface-variant font-body-sm text-body-sm flex flex-col items-center gap-2">
+                  <span className="material-symbols-outlined text-[28px] opacity-50">sailing</span>
+                  No vessels surfaced in range right now.
+                </div>
+              )}
+              {previewVessels.map((vessel, idx) => (
+                <div key={idx} className="bg-surface rounded-lg p-3 border border-outline-variant/50 flex flex-col gap-2">
                   <div className="flex justify-between items-baseline">
                     <span className="font-data-mono text-data-mono text-on-surface truncate font-bold">{vessel.name}</span>
                     <span className="font-data-mono text-[10px] bg-surface-variant px-1.5 py-0.5 rounded text-on-surface-variant uppercase">{vessel.zone}</span>
                   </div>
                   <div className="flex justify-between items-center font-body-sm text-body-sm text-on-surface-variant">
                     <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">speed</span> {vessel.sog} kts</span>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1" title={`ETA Confidence: ${vessel.conf}%`}>
-                        <span className="font-data-mono text-[10px] opacity-70">{vessel.conf}%</span>
-                        <div className="w-8 h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                          <div className={`h-full ${vessel.conf >= 90 ? 'bg-primary' : vessel.conf >= 70 ? 'bg-tertiary' : 'bg-error'}`} style={{ width: `${vessel.conf}%` }}></div>
-                        </div>
-                      </div>
-                      <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">schedule</span> {vessel.eta}</span>
-                    </div>
+                    <span
+                      className="flex items-center gap-1"
+                      title="Estimated ETA — heuristic from distance ÷ speed, not a model prediction"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">schedule</span>
+                      {vessel.eta || '--:--'}
+                      <span className="text-[10px] opacity-60 ml-0.5">est.</span>
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="p-3 border-t border-outline-variant/30 bg-surface-container-low rounded-b-xl text-center font-body-sm text-body-sm text-on-surface-variant">
-              Showing all {port.vessels.length} surfaced vessels for this port
-            </div>
+
+            <Link
+              to="/map"
+              className="mt-auto p-3 border-t border-outline-variant/30 bg-surface-container-low rounded-b-xl text-center font-label-caps text-label-caps text-primary hover:bg-surface-variant transition-colors flex items-center justify-center gap-1"
+            >
+              {hiddenCount > 0
+                ? `View all ${port.vessels.length} vessels in Traffic`
+                : 'Open Traffic map'}
+              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </Link>
           </div>
         </div>
       </div>
