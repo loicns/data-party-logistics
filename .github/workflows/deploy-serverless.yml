@@ -46,6 +46,11 @@ jobs:
       - name: Build SAM app
         run: sam build --template-file template.yaml
 
+      # Refuse to ship host-arch native wheels — a macOS/x86_64 pydantic_core
+      # on the arm64 Lambdas caused a 2-day silent AIS ingestion outage.
+      - name: Verify native wheels are Linux arm64
+        run: scripts/check_wheel_arch.sh
+
       - name: Deploy SAM app
         run: >
           sam deploy
@@ -60,3 +65,18 @@ jobs:
           AisStreamApiKey="${{ secrets.AISSTREAM_API_KEY }}"
           PublicDashboardBucketName="${{ secrets.DPL_DASHBOARD_BUCKET }}"
           PublicDashboardDistributionId="${{ secrets.DPL_CLOUDFRONT_DISTRIBUTION_ID }}"
+
+      # Post-deploy smoke test: invoke the freshness Lambda (read-only — it
+      # only inspects S3 object ages). Catches ImportModuleError / wrong-arch /
+      # missing-bundle regressions in CI instead of silently in production.
+      - name: Smoke test deployed Lambda
+        run: |
+          aws lambda invoke --function-name "$STACK_NAME-freshness" \
+            --region "$AWS_REGION" /tmp/smoke.json
+          cat /tmp/smoke.json
+          python3 -c "
+          import json
+          out = json.load(open('/tmp/smoke.json'))
+          assert 'errorMessage' not in out, f'Lambda errored: {out}'
+          print('smoke test OK')
+          "

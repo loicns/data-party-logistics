@@ -95,7 +95,7 @@
   </header>
 
   <div class="snapshot reveal">
-    <div class="cell"><div class="k">Issues fixed</div><div class="v good">~20</div></div>
+    <div class="cell"><div class="k">Issues fixed</div><div class="v good">26</div></div>
     <div class="cell"><div class="k">Predict loop</div><div class="v good">Live</div></div>
     <div class="cell"><div class="k">AIS ingestion</div><div class="v good">Restored</div></div>
     <div class="cell"><div class="k">Vessels surfaced</div><div class="v good">16.5k</div></div>
@@ -140,6 +140,13 @@
         <tr><td class="num">17</td><td>UI: “High congestion” at 0 waiting; fake gauges</td><td>Hardcoded colours/widths + heuristic “confidence” shown as model output</td><td>Data-bound metrics; honest labels; disabled mock actions</td></tr>
         <tr><td class="num">18</td><td>Heavy first paint</td><td>All routes + maplibre/chart.js in one bundle</td><td>Route-level <code>React.lazy</code> code-splitting</td></tr>
         <tr><td class="num">19</td><td>Silent outages invisible to viewers</td><td>No staleness signal; zeros looked like a calm port</td><td>Freshness banner tied to the ≤2h SLA</td></tr>
+        <tr><td class="num">20</td><td><strong>“Predictive” tab showed history as a forecast</strong></td><td>Export field <code>forecast</code> was literally <code>trend_values[-5:]</code>; the real model output fed only one card</td><td>Model 24h forecast is now the page hero; chart honestly relabelled “Congestion Trend — last 5 days”</td></tr>
+        <tr><td class="num">21</td><td>Decorative chrome (bell, person, “Create Alert”)</td><td>Non-functional buttons — the clearest mockup tell</td><td>Removed</td></tr>
+        <tr><td class="num">22</td><td>ETA sort mis-ordered; ETAs unlabelled in Schedule</td><td>String sort on ETA text; heuristic shown as fact</td><td>Numeric distance÷speed sort; “ETA (est.)” labels</td></tr>
+        <tr><td class="num">23</td><td><code>demo-data.js</code> ballooned to multi-MB</td><td>16.5k vessels serialized after ingestion recovered</td><td>Capped at 250/port; metrics still computed from the full set; frontend now trusts backend counts</td></tr>
+        <tr><td class="num">24</td><td>CNSHA (Shanghai) surfaced 0 vessels</td><td>Two layers: no CNSHA row in the UN/LOCODE seed (no AIS bbox) + sparse aisstream coverage of Chinese waters (56 msgs/2d vs thousands for Rotterdam)</td><td>Added CNSHA/GBFXT/TWKHH seed rows + coverage caveat documented in the data dictionary</td></tr>
+        <tr><td class="num">25</td><td>A CloudFront blip blanked the dashboard</td><td>Single fetch, no retry</td><td>Retry with backoff in the data fetcher</td></tr>
+        <tr><td class="num">26</td><td>Nothing stopped the outage from recurring</td><td>No arch gate, no post-deploy check</td><td><code>check_wheel_arch.sh</code> gates deploy.sh + CI; CI now smoke-tests a deployed Lambda after every deploy</td></tr>
       </tbody>
     </table>
   </section>
@@ -223,9 +230,8 @@
     <table>
       <thead><tr><th>Area</th><th>Improvement</th><th>Why</th><th></th></tr></thead>
       <tbody>
-        <tr><td>Data coverage</td><td>Fix <code>CNSHA</code> (Shanghai) surfacing 0 vessels</td><td>A flagship port shows empty — bbox/coords gap</td><td><span class="pill todo">v1.3</span></td></tr>
-        <tr><td>Build safety</td><td>A pre-deploy check that fails if any wheel isn’t <code>linux_aarch64</code></td><td>Would have caught the outage before it shipped</td><td><span class="pill todo">v1.3</span></td></tr>
-        <tr><td>CI</td><td>Post-deploy smoke test that invokes a deployed Lambda</td><td>Catch arch/runtime breaks in CI, not in prod</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Data coverage</td><td>Evaluate a satellite-AIS source for Chinese waters</td><td>CNSHA now has its own bbox, but aisstream terrestrial coverage there stays sparse (~56 msgs/2d) — an upstream limit, documented in the data dictionary</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Testing</td><td>Frontend unit tests (Vitest) for <code>normalizePort</code> and the freshness math</td><td>The two trickiest client-side derivations are untested</td><td><span class="pill todo">v1.3</span></td></tr>
         <tr><td>Model</td><td>Real ETA model; drop the distance÷speed heuristic</td><td>Honesty + accuracy for the schedule views</td><td><span class="pill todo">v1.3</span></td></tr>
         <tr><td>Model</td><td>Time-based split once more history accrues</td><td>Removes the stratified-split leakage</td><td><span class="pill todo">v1.3</span></td></tr>
         <tr><td>Frontend</td><td>Reuse the MapLibre instance across port switches; one icon system</td><td>Less jank, smaller bundle</td><td><span class="pill todo">v1.3</span></td></tr>
@@ -247,6 +253,11 @@
         <tr><td>Freshness banner; route code-splitting (358→75kB gzip)</td><td><span class="pill done">done</span></td></tr>
         <tr><td>Secret hygiene (<code>.env</code> + <code>deploy.sh</code>); CI &amp; Deploy green</td><td><span class="pill done">done</span></td></tr>
         <tr><td>Reproducibility test for the seed; operations runbook</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Predictive tab rebuilt around the real model output (was history-as-forecast)</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Pre-deploy wheel-arch gate + post-deploy CI smoke test (outage can’t recur silently)</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Vessel cap (250/port) with authoritative backend metrics; fetch retry</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Shanghai/Felixstowe/Kaohsiung AIS bounding boxes added to the seed (10/10 covered)</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Docs set completed: model card, data dictionary, dashboard README, incident post-mortem</td><td><span class="pill done">done</span></td></tr>
       </tbody>
     </table>
   </section>

@@ -22,6 +22,8 @@ set +a
 export AWS_PROFILE="${AWS_PROFILE:-dpl}"
 
 sam build
+# Refuse to ship host-arch native wheels (the cause of the AIS outage).
+scripts/check_wheel_arch.sh
 sam deploy \
   --parameter-overrides \
     "AlertEmail=nsabiyeloic@gmail.com" \
