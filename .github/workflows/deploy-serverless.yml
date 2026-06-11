@@ -7,7 +7,12 @@ on:
     paths:
       - "template.yaml"
       - "requirements.txt"
+      - "requirements-predict.txt"
+      - "Makefile"
       - "serverless/**"
+      - "models/**"
+      - "athena/**"
+      - "vendor/**"
       - "ingestion/clients/ais_stream.py"
       - "ingestion/clients/noaa_tides.py"
       - "ingestion/clients/weather.py"
