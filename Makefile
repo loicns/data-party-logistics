@@ -4,12 +4,22 @@
 # This keeps each package well under Lambda's 250 MB unzipped limit.
 
 # `athena` ships the canonical CTAS .sql files so features_lambda can read them.
-LAMBDA_MODULES = serverless ingestion athena
+# `warehouse` ships the UN/LOCODE seed CSV that ais_stream/weather load at import
+# to build port bounding boxes — without it the ingestion Lambdas FileNotFoundError.
+LAMBDA_MODULES = serverless ingestion athena warehouse
 LAMBDA_REQS    = requirements.txt
 
 define _build
 	cp -r $(LAMBDA_MODULES) $(ARTIFACTS_DIR)/
-	python3.12 -m pip install -r $(LAMBDA_REQS) -t $(ARTIFACTS_DIR) --upgrade --quiet
+	# Force Linux arm64 wheels regardless of build host (macOS laptop or x86_64 CI):
+	# pydantic ships a compiled core (pydantic_core) that must match the Lambda's
+	# arm64 architecture, or the function fails with ImportModuleError at runtime.
+	python3.12 -m pip install -r $(LAMBDA_REQS) -t $(ARTIFACTS_DIR) \
+		--platform manylinux2014_aarch64 \
+		--implementation cp \
+		--python-version 3.12 \
+		--only-binary=:all: \
+		--upgrade --quiet
 endef
 
 build-AisSnapshotFunction:
