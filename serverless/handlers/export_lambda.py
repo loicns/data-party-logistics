@@ -14,6 +14,11 @@ from serverless.metrics import put_metric
 from serverless.ports import PORT_TERMINALS, PORTS
 from serverless.s3_health import latest_object_for_prefix, object_age_minutes
 
+# Serialized vessel cap per port. Metrics are computed from the full query
+# result; only the shipped list is truncated — 16k vessels made demo-data.js
+# multi-MB and unrenderable as map markers.
+MAX_VESSELS_PER_PORT = 250
+
 
 def _env(name: str, default: str = "") -> str:
     value = os.getenv(name, default)
@@ -386,6 +391,9 @@ def _build_port_payload(
         database=database,
         output_location=output_location,
     )
+    # All metrics/schedule below are computed from the FULL vessel set; only the
+    # serialized list is capped (see MAX_VESSELS_PER_PORT) to keep demo-data.js
+    # small enough to ship through CloudFront and render on the map.
     vessels = []
     for row in vessel_rows:
         distance_nm = round(_safe_float(row.get("distance_nm")), 1)
@@ -430,7 +438,8 @@ def _build_port_payload(
     approaching = [v for v in vessels if v["zone"] in ["approaching", "transit"]]
     approaching.sort(key=lambda x: x["dist"])
 
-    for v in approaching:
+    # Same payload-size rule as vessels: nearest inbound only.
+    for v in approaching[:MAX_VESSELS_PER_PORT]:
         schedule.append(
             {
                 "vessel": v["name"],
@@ -478,7 +487,10 @@ def _build_port_payload(
         },
         "forecast": trend_values[-5:],
         "trend": trend_values,
-        "vessels": vessels,
+        # SQL orders by zone priority then distance, so the first N are the
+        # operationally relevant vessels (berthed, anchored, nearest inbound).
+        "vessels": vessels[:MAX_VESSELS_PER_PORT],
+        "vesselsTotal": len(vessels),
         "berthAllocations": berth_allocations,
         "schedule": schedule,
     }

@@ -38,3 +38,24 @@ def test_seed_resolves_full_locode_dataset() -> None:
     assert len(centers) > 1000, (
         f"Seed resolved only {len(centers)} port centers — looks truncated."
     )
+
+
+def test_seed_covers_all_pilot_ports() -> None:
+    # Every port the pilot scores must have its own AIS bounding box.
+    # CNSHA/GBFXT/TWKHH were missing from the upstream export and were added
+    # manually — if this regresses, those ports silently lose AIS coverage.
+    pilot = [
+        "NLRTM",
+        "SGSIN",
+        "USLAX",
+        "CNSHA",
+        "DEHAM",
+        "BEANR",
+        "GBFXT",
+        "AEDXB",
+        "USNYC",
+        "TWKHH",
+    ]
+    centers = load_port_centers(SEED)
+    missing = [code for code in pilot if code not in centers]
+    assert not missing, f"Seed is missing pilot ports: {missing}"
