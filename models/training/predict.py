@@ -1,10 +1,9 @@
 import argparse
 import os
-import pickle
-import tempfile
 
 import awswrangler as wr
 import boto3
+import lightgbm as lgb
 from dotenv import load_dotenv
 
 from models.features import FEATURES
@@ -15,24 +14,16 @@ BUCKET = os.environ["S3_BUCKET_RAW"]  # fails loud if missing — good
 DATABASE = os.getenv("ATHENA_DATABASE", "dpl_pilot")
 REGION = os.getenv("AWS_REGION", "eu-west-3")
 boto3.setup_default_session(region_name=REGION)
-S3_OBJECT_KEY = "models/port_congestion/model_lightgbm.pkl"
+S3_OBJECT_KEY = "models/port_congestion/model.txt"
 
 
-def load_model():
-    """Download + deserialize the model from S3."""
+def load_model() -> lgb.Booster:
+    """Download the native LightGBM booster (text format) from S3 and load it."""
     s3_client = boto3.client("s3")
-
-    with tempfile.NamedTemporaryFile(delete=True) as tmp_file:
-        print(f"Downloading model to temporary file: {tmp_file.name}")
-
-        s3_client.download_fileobj(BUCKET, S3_OBJECT_KEY, tmp_file)
-
-        tmp_file.seek(0)
-
-        model = pickle.load(tmp_file)
-    print("Model loaded successfully into memory. Temp file cleaned up.")
-
-    return model
+    obj = s3_client.get_object(Bucket=BUCKET, Key=S3_OBJECT_KEY)
+    model_str = obj["Body"].read().decode("utf-8")
+    print("Model loaded successfully into memory.")
+    return lgb.Booster(model_str=model_str)
 
 
 def predict(model, port_code: str) -> dict:
@@ -44,7 +35,7 @@ def predict(model, port_code: str) -> dict:
     vessels_in_200nm,
     vessels_at_anchor,
     avg_speed_50nm,
-    max_wave_height_m,
+    avg_wave_height_m,
     hour_of_day,
     day_of_week
     FROM feature_port_status_hourly
@@ -65,8 +56,9 @@ def predict(model, port_code: str) -> dict:
 
     X = df[FEATURES]
 
-    prediction = int(model.predict(X)[0])  # 0 or 1
-    probability = float(model.predict_proba(X)[0][1])  # P(congested)
+    # Binary booster.predict returns P(congested) directly; threshold at 0.5.
+    probability = float(model.predict(X)[0])  # P(congested)
+    prediction = int(probability >= 0.5)  # 0 or 1
 
     as_of = str(df["observation_hour"].iloc[0])  # when this snapshot is from
 
