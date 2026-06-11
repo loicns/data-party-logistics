@@ -51,7 +51,8 @@ NOAA       ─┘        │
 
 - `LGBMClassifier`, `scale_pos_weight` from training labels, time-aware 80/20 split.
 - Feature contract: `models/features.py` (single source, prevents train/serve skew).
-- Artifact: `model_lightgbm.pkl` (latest alias) + timestamped copies in S3.
+- Artifact: `model.txt` (native LightGBM booster) in S3 — serving needs only
+  lightgbm, not scikit-learn, keeping the predict Lambda under the 250 MB limit.
 
 ## 3. Known weaknesses in v1.1
 
