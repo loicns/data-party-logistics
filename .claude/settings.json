@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/loicns/Documents/LEARN_ML/data-party-logistics/guides/week-05/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(aws s3 *)",
+      "Bash(awk '{print $3, $4, $5}')",
+      "Bash(sort -k3)",
+      "Bash(awk '{print $2}')"
+    ]
+  }
+}

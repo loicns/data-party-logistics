@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import FreshnessBanner from "./FreshnessBanner";
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -11,6 +12,7 @@ export default function Layout() {
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className="flex-1 flex flex-col md:ml-64 min-w-0 h-screen overflow-hidden relative">
         <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
+        <FreshnessBanner />
         <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
           <Outlet />
         </main>

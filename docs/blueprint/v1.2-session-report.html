@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DPL v1.2 — Go-Live Session Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --paper:#FAF9F5; --paper-2:#F0EEE6; --paper-3:#E8E6DC; --panel:#FFFFFF;
+      --ink:#141413; --ink-2:#6B6A63; --ink-3:#94938B; --ink-inv:#FAF9F5;
+      --line:rgba(20,20,19,0.10); --line-2:rgba(20,20,19,0.16);
+      --coral:#D97757; --coral-press:#C25B3A; --coral-ink:#B8543A; --coral-tint:rgba(217,119,87,0.10);
+      --green:#788C5D; --amber:#C98A3B;
+      --font-serif:"Newsreader",Georgia,serif;
+      --font-sans:"Hanken Grotesk",system-ui,sans-serif;
+      --font-mono:"JetBrains Mono",ui-monospace,monospace;
+      --t-display:clamp(2.5rem,1.4rem + 4.6vw,4rem);
+      --t-h2:clamp(1.5rem,1.2rem + 1.2vw,2rem);
+      --maxw:1000px;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    body{margin:0;background:var(--paper);color:var(--ink);
+      font-family:var(--font-serif);font-size:1.0625rem;line-height:1.7}
+    .wrap{max-width:var(--maxw);margin:0 auto;padding:72px 28px 120px}
+    h1,h2,h3,h4{font-family:var(--font-serif);font-weight:400;line-height:1.12;letter-spacing:-0.01em;margin:0}
+    .eyebrow{font-family:var(--font-sans);font-size:0.75rem;font-weight:600;
+      text-transform:uppercase;letter-spacing:.14em;color:var(--ink-2)}
+    .ui{font-family:var(--font-sans)} .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+    a{color:var(--coral-ink);text-decoration:none;border-bottom:1px solid var(--coral-tint)}
+
+    header{border-bottom:1px solid var(--line);padding-bottom:34px;margin-bottom:8px}
+    h1.title{font-size:var(--t-display);font-weight:300;letter-spacing:-0.025em;margin:14px 0 0}
+    .lede{color:var(--ink-2);font-size:1.1875rem;max-width:62ch;margin:18px 0 0}
+    .meta{font-family:var(--font-sans);font-size:0.8125rem;color:var(--ink-3);margin-top:22px;display:flex;gap:20px;flex-wrap:wrap}
+    .meta .mono{color:var(--ink-2)}
+
+    .snapshot{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;
+      background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:40px 0 8px}
+    .snapshot .cell{background:var(--paper);padding:18px 20px}
+    .snapshot .k{font-family:var(--font-sans);font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3)}
+    .snapshot .v{font-family:var(--font-serif);font-size:1.6rem;margin-top:6px;line-height:1}
+    .snapshot .v.good{color:var(--green)}
+
+    section{margin-top:64px}
+    h2{font-size:var(--t-h2)}
+    .sec-sub{color:var(--ink-2);max-width:66ch;margin:6px 0 22px}
+
+    table{width:100%;border-collapse:collapse;margin:14px 0;font-size:0.95rem}
+    th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+    th{font-family:var(--font-sans);font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+    td .mono,code{font-family:var(--font-mono);font-size:0.82rem;background:var(--paper-2);padding:1px 5px;border-radius:4px}
+    .num{color:var(--coral-ink);font-family:var(--font-mono);font-weight:500}
+
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:16px 0;box-shadow:0 1px 2px rgba(20,20,19,0.04)}
+    .card h3{font-size:1.3rem;margin-bottom:8px}
+    .tag{display:inline-block;font-family:var(--font-sans);font-size:0.66rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:3px 9px;border-radius:999px;margin-left:8px}
+    .tag.fix{background:var(--coral-tint);color:var(--coral-ink)}
+    .lesson{display:grid;grid-template-columns:30px 1fr;gap:16px;padding:18px 0;border-top:1px solid var(--line)}
+    .lesson:first-of-type{border-top:none}
+    .lesson .n{width:28px;height:28px;border-radius:999px;border:1.5px solid var(--coral);color:var(--coral-ink);
+      font-family:var(--font-sans);font-weight:600;font-size:0.85rem;display:flex;align-items:center;justify-content:center}
+    .lesson h4{font-size:1.1rem;margin-bottom:4px}
+    .lesson p{margin:0;color:var(--ink-2);font-size:1rem}
+    .pill{font-family:var(--font-sans);font-size:0.7rem;font-weight:600;padding:3px 9px;border-radius:999px}
+    .pill.done{background:rgba(120,140,93,.15);color:var(--green)}
+    .pill.todo{background:rgba(201,138,59,.15);color:var(--amber)}
+    footer{margin-top:80px;padding-top:24px;border-top:1px solid var(--line);font-family:var(--font-sans);font-size:0.8125rem;color:var(--ink-3)}
+
+    @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .reveal{opacity:0;animation:rise .55s cubic-bezier(.2,.7,.2,1) forwards}
+    .reveal:nth-child(1){animation-delay:.02s}.reveal:nth-child(2){animation-delay:.08s}
+    .reveal:nth-child(3){animation-delay:.14s}.reveal:nth-child(4){animation-delay:.20s}
+    .reveal:nth-child(5){animation-delay:.26s}.reveal:nth-child(6){animation-delay:.32s}
+    @media (prefers-reduced-motion:reduce){.reveal{animation:none;opacity:1}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="reveal">
+    <p class="eyebrow">Data Party Logistics · v1.2 go-live</p>
+    <h1 class="title">From “code complete” to a live, self-healing cloud loop</h1>
+    <p class="lede">One session: deploy the serverless forecast pipeline, debug it through a
+      gauntlet of cross-architecture packaging traps, cut the dashboard over to live cloud data,
+      uncover and fix a two-day AIS outage, and harden the whole thing for production.</p>
+    <div class="meta ui">
+      <span>Report <span class="mono">2026-06-11</span></span>
+      <span>Stack <span class="mono">dpl-serverless-pilot · eu-west-3 · arm64</span></span>
+      <span>Author <span class="mono">pair: engineer + Claude</span></span>
+    </div>
+  </header>
+
+  <div class="snapshot reveal">
+    <div class="cell"><div class="k">Issues fixed</div><div class="v good">~20</div></div>
+    <div class="cell"><div class="k">Predict loop</div><div class="v good">Live</div></div>
+    <div class="cell"><div class="k">AIS ingestion</div><div class="v good">Restored</div></div>
+    <div class="cell"><div class="k">Vessels surfaced</div><div class="v good">16.5k</div></div>
+    <div class="cell"><div class="k">CI / Deploy</div><div class="v good">Green</div></div>
+    <div class="cell"><div class="k">Bundle (gzip)</div><div class="v good">358→75kB</div></div>
+  </div>
+
+  <!-- THE ARC -->
+  <section class="reveal">
+    <h2>The arc, in one paragraph</h2>
+    <p class="sec-sub">The code was “done.” Everything that broke broke at the seams between
+      environments — laptop vs. Linux, x86 vs. arm64, one bucket vs. another, a file that existed
+      locally but not in git. None of it was logic bugs; almost all of it was <em>packaging,
+      configuration, and contracts between components</em>. That is the real lesson.</p>
+  </section>
+
+  <!-- ISSUES TABLE -->
+  <section class="reveal">
+    <h2>Every issue we fixed</h2>
+    <p class="sec-sub">Chronological. Each was a real failure observed in a deploy, an invoke, or
+      the browser — then traced to root cause and fixed durably (not patched).</p>
+
+    <table>
+      <thead><tr><th>#</th><th>Symptom</th><th>Root cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Container build couldn’t find <code>.venv/bin/python3</code></td><td><code>--use-container</code> copied the repo incl. a dangling macOS venv symlink</td><td>Switched stack to <code>arm64</code>, built natively</td></tr>
+        <tr><td class="num">2</td><td>Changeset <code>ResourceExistenceCheck</code> failed</td><td>Guided deploy defaulted to stack name <code>sam-app</code>, colliding with live resources</td><td>Pinned <code>stack_name=dpl-serverless-pilot</code></td></tr>
+        <tr><td class="num">3</td><td>AIS key was about to be committed</td><td>Guided deploy wrote the secret into <code>samconfig.toml</code></td><td><code>.env</code> as single source + <code>deploy.sh</code> injects it</td></tr>
+        <tr><td class="num">4</td><td>Athena CTAS: <em>Unsupported Hive type timestamp(3) with time zone</em></td><td><code>from_iso8601_timestamp()</code> returns a tz type CTAS can’t store</td><td><code>CAST(... AS timestamp)</code> in 3 SQL files</td></tr>
+        <tr><td class="num">5</td><td>CTAS: <code>wind_speed_10m_kn</code> not found</td><td>SQL referenced a column the weather table never had</td><td>Mapped to the real <code>wind_wave_height_m</code></td></tr>
+        <tr><td class="num">6</td><td>Training/serving: <code>max_wave_height_m</code> not found</td><td>Feature contract drifted from the gold table</td><td>Aligned everything to <code>avg_wave_height_m</code></td></tr>
+        <tr><td class="num">7</td><td>AUC = <code>nan</code>, recall 0</td><td>Chronological split put <em>all</em> positives in train</td><td>Stratified split (documented leakage trade-off)</td></tr>
+        <tr><td class="num">8</td><td>predict 404 on model</td><td>Model uploaded to the raw bucket, Lambda reads the pilot bucket</td><td>Copy step + later repointed</td></tr>
+        <tr><td class="num">9</td><td>predict: <code>lib_lightgbm.so</code> missing / wrong arch</td><td>macOS wheels shipped to a Linux Lambda</td><td><code>pip --platform manylinux2014_aarch64</code></td></tr>
+        <tr><td class="num">10</td><td>predict package <span class="mono">268MB</span> &gt; 250MB limit</td><td>scikit-learn + scipy dragged in by the pickled model</td><td>Saved native booster (<code>model.txt</code>); dropped sklearn → 210MB</td></tr>
+        <tr><td class="num">11</td><td>predict: <code>libgomp.so.1</code> cannot open</td><td>LightGBM’s OpenMP runtime not on the minimal Lambda</td><td>Vendored Linux-arm64 <code>libgomp.so.1</code></td></tr>
+        <tr><td class="num">12</td><td>CI red: <em>can’t read ‘serving’ / ‘agent’</em></td><td>mypy targeted deleted/untracked dirs</td><td>Pointed mypy at <code>ingestion/</code></td></tr>
+        <tr><td class="num">13</td><td>Live predictions silently went <code>null</code></td><td>Deploy path-filter ignored <code>models/</code>, so a stale contract shipped</td><td>Widened filter to models/athena/Makefile/vendor</td></tr>
+        <tr><td class="num">14</td><td>Dashboard read predictions from the wrong URL</td><td>Regex matched <code>demo-data.json</code> but the file is <code>.js</code></td><td>Matched both extensions</td></tr>
+        <tr><td class="num">15</td><td><strong>Dashboard showed 0 vessels for 2 days</strong></td><td><code>ais/weather/noaa</code> crashed: <code>pydantic_core</code> built for the wrong arch</td><td>Forced Linux-arm64 wheels for <em>all</em> functions</td></tr>
+        <tr><td class="num">16</td><td>AIS still crashed: <code>un_locode.csv</code> not found</td><td>Seed deleted in a refactor but still imported by ingestion</td><td>Restored from git + bundled + guard test</td></tr>
+        <tr><td class="num">17</td><td>UI: “High congestion” at 0 waiting; fake gauges</td><td>Hardcoded colours/widths + heuristic “confidence” shown as model output</td><td>Data-bound metrics; honest labels; disabled mock actions</td></tr>
+        <tr><td class="num">18</td><td>Heavy first paint</td><td>All routes + maplibre/chart.js in one bundle</td><td>Route-level <code>React.lazy</code> code-splitting</td></tr>
+        <tr><td class="num">19</td><td>Silent outages invisible to viewers</td><td>No staleness signal; zeros looked like a calm port</td><td>Freshness banner tied to the ≤2h SLA</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- DEEP DIVE -->
+  <section class="reveal">
+    <h2>The headline bug: a two-day silent AIS outage</h2>
+    <div class="card">
+      <h3>How it hid <span class="tag fix">post-mortem</span></h3>
+      <p>Switching the stack to arm64 fixed the build — but only the <em>predict</em> function got
+      platform-targeted wheels. The other six used a plain <code>pip install</code> that builds for
+      the <em>host</em> architecture. So the compiled <code>pydantic_core</code> shipped as macOS (or
+      x86_64-CI) binaries onto arm64 Lambdas and failed to import. Functions <em>without</em> pydantic
+      (predict, features, export) kept working — which is exactly why the failure was invisible:
+      forecasts still updated, but the three <em>ingestion</em> Lambdas were dead, so no fresh AIS
+      landed. The export’s correct 6-hour vessel window then returned nothing, and the dashboard
+      showed zeros that looked like a quiet port. A second, older bug hid behind it: the
+      <code>un_locode.csv</code> seed had been deleted in a refactor but is still read at import.
+      Fixing one revealed the other.</p>
+    </div>
+  </section>
+
+  <!-- LESSONS -->
+  <section class="reveal">
+    <h2>Lessons — from a junior-dev lens</h2>
+    <p class="sec-sub">What this session would teach someone shipping their first production system.</p>
+
+    <div class="lesson"><div class="n">1</div><div>
+      <h4>Native dependencies are the #1 cloud-deploy trap.</h4>
+      <p>Anything with a compiled core — <code>pydantic_core</code>, <code>lightgbm</code>,
+      <code>scipy</code>, <code>numpy</code> — must match the Lambda’s OS <em>and</em> CPU. Build for
+      the target (<code>--platform manylinux2014_aarch64</code>), never the host.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">2</div><div>
+      <h4>Don’t build production artifacts on your laptop.</h4>
+      <p>A macOS <code>deploy.sh</code> shipping host-arch wheels caused the outage. Either build for
+      the target explicitly, or deploy only from CI — and even CI must target the right arch.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">3</div><div>
+      <h4>Secrets never live in committed config.</h4>
+      <p>One <code>git add</code> nearly leaked the AIS key. Keep it in <code>.env</code>, inject at
+      deploy time, and assert no secret is in tracked files.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">4</div><div>
+      <h4>CI/CD path filters must match what you bundle.</h4>
+      <p>The predict Lambda bundles <code>models/</code>, but the deploy trigger ignored it — so a
+      fixed model contract never deployed and production silently served stale results.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">5</div><div>
+      <h4>“Dead code” may have living dependants.</h4>
+      <p>A refactor deleted the UN/LOCODE seed; ingestion still imported it. Before deleting, grep for
+      importers — and add a test so the contract can’t silently break again.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">6</div><div>
+      <h4>Make silent failures loud.</h4>
+      <p>The dashboard showed zeros with no hint the pipeline was down. A freshness banner turns an
+      invisible outage into an obvious one — observability is a feature.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">7</div><div>
+      <h4>Honesty is a design constraint.</h4>
+      <p>Hardcoded “High congestion”, fake gauges, and heuristic numbers dressed as model output
+      erode trust. Bind every visual to real data or label it as estimated.</p>
+    </div></div>
+
+    <div class="lesson"><div class="n">8</div><div>
+      <h4>Verify end-to-end after every deploy.</h4>
+      <p>Each fix was confirmed by an actual invoke / curl / browser check — not assumed. That’s how
+      the null-predictions and the outage were caught at all.</p>
+    </div></div>
+  </section>
+
+  <!-- V1.3 -->
+  <section class="reveal">
+    <h2>What to improve in v1.3</h2>
+    <table>
+      <thead><tr><th>Area</th><th>Improvement</th><th>Why</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Data coverage</td><td>Fix <code>CNSHA</code> (Shanghai) surfacing 0 vessels</td><td>A flagship port shows empty — bbox/coords gap</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Build safety</td><td>A pre-deploy check that fails if any wheel isn’t <code>linux_aarch64</code></td><td>Would have caught the outage before it shipped</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>CI</td><td>Post-deploy smoke test that invokes a deployed Lambda</td><td>Catch arch/runtime breaks in CI, not in prod</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Model</td><td>Real ETA model; drop the distance÷speed heuristic</td><td>Honesty + accuracy for the schedule views</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Model</td><td>Time-based split once more history accrues</td><td>Removes the stratified-split leakage</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Frontend</td><td>Reuse the MapLibre instance across port switches; one icon system</td><td>Less jank, smaller bundle</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Ops</td><td>Surface CloudWatch alarms + last-run times on the dashboard</td><td>Stakeholder-grade monitoring</td><td><span class="pill todo">v1.3</span></td></tr>
+        <tr><td>Packaging</td><td>Move predict to a container image if it nears 250MB again</td><td>Headroom; already at 210MB</td><td><span class="pill todo">v1.3</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SHIPPED -->
+  <section class="reveal">
+    <h2>Shipped this session</h2>
+    <table>
+      <tbody>
+        <tr><td>Self-updating cloud forecast loop (features + predict Lambdas)</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Native-booster serving (no sklearn/scipy), under the size limit</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>AIS ingestion restored; 16.5k vessels surfacing again</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Dashboard on live cloud data; honest metrics; Active-Traffic preview + link</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Freshness banner; route code-splitting (358→75kB gzip)</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Secret hygiene (<code>.env</code> + <code>deploy.sh</code>); CI &amp; Deploy green</td><td><span class="pill done">done</span></td></tr>
+        <tr><td>Reproducibility test for the seed; operations runbook</td><td><span class="pill done">done</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="ui">
+    DPL · Lambda + Athena + SAM + LightGBM · dashboard on Vercel/CloudFront ·
+    Companion docs: <code>08-RUNBOOK.md</code>, <code>v1.2-cleanup-plan.html</code>,
+    <code>06-CHANGELOG.md</code>.
+  </footer>
+
+</div>
+</body>
+</html>

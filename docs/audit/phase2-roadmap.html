@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Data Party Logistics — Phase 2 Roadmap &amp; Implementation Guide</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212e; --ink:#e8eef4; --muted:#9fb0c0;
+    --line:#26384b; --green:#2ecc71; --amber:#f4b740; --red:#ff5d5d;
+    --blue:#4aa3ff; --accent:#5ad1c4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:40px 24px 96px}
+  header.top{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:36px}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:-.4px}
+  .sub{color:var(--muted);font-size:15px}
+  h2{font-size:23px;margin:48px 0 14px;letter-spacing:-.3px;
+    border-left:4px solid var(--accent);padding-left:12px}
+  h3{font-size:18px;margin:28px 0 8px}
+  p{margin:10px 0}
+  .lede{font-size:18px;color:#cfe0ee}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin:16px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.4px;
+    padding:3px 10px;border-radius:999px;text-transform:uppercase}
+  .ok{background:rgba(46,204,113,.15);color:var(--green);border:1px solid rgba(46,204,113,.4)}
+  .warn{background:rgba(244,183,64,.15);color:var(--amber);border:1px solid rgba(244,183,64,.4)}
+  .bad{background:rgba(255,93,93,.15);color:var(--red);border:1px solid rgba(255,93,93,.4)}
+  .info{background:rgba(74,163,255,.15);color:var(--blue);border:1px solid rgba(74,163,255,.4)}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.3px}
+  code{background:#0b1219;border:1px solid var(--line);border-radius:5px;
+    padding:1px 6px;font-size:13.5px;color:#cfe9e4}
+  .flow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:13.5px}
+  .node{background:#0b1219;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+  .node.live{border-color:rgba(46,204,113,.5)}
+  .node.dead{border-color:rgba(255,93,93,.5);opacity:.85}
+  .arr{color:var(--muted)}
+  .gap{border-left:4px solid var(--red)}
+  .gap.amber{border-left-color:var(--amber)}
+  .gap h3{margin-top:0}
+  .meta{color:var(--muted);font-size:13.5px}
+  ol.steps{counter-reset:s;list-style:none;padding-left:0}
+  ol.steps>li{counter-increment:s;position:relative;padding:12px 0 12px 44px;border-bottom:1px solid var(--line)}
+  ol.steps>li:last-child{border-bottom:none}
+  ol.steps>li::before{content:counter(s);position:absolute;left:0;top:12px;
+    width:30px;height:30px;border-radius:50%;background:var(--accent);color:#06231f;
+    font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .dod{background:rgba(46,204,113,.08);border:1px dashed rgba(46,204,113,.45);
+    border-radius:8px;padding:10px 14px;margin:12px 0 4px;font-size:14px}
+  .dod b{color:var(--green)}
+  .phase-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .effort{font-size:12px;color:var(--muted)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+  .toc a{color:var(--blue);text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .toc li{margin:4px 0}
+  hr{border:none;border-top:1px solid var(--line);margin:40px 0}
+  .callout{border-radius:10px;padding:16px 18px;margin:18px 0}
+  .callout.red{background:rgba(255,93,93,.08);border:1px solid rgba(255,93,93,.35)}
+  .callout.blue{background:rgba(74,163,255,.08);border:1px solid rgba(74,163,255,.35)}
+  .small{font-size:13.5px;color:var(--muted)}
+  strong.k{color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Data Party Logistics — Phase 2 Roadmap</h1>
+  <div class="sub">Plain-English audit &amp; step-by-step implementation guide · Reviewed 9 June 2026 · <span class="meta">Review first — no code changed yet</span></div>
+</header>
+
+<p class="lede">
+  The system is shipped and the data keeps flowing. But the part that makes this an
+  <em>AI product</em> — the 24-hour congestion forecast — is being cranked by hand from a laptop,
+  and the file in production is almost a month old. This page explains, in everyday terms,
+  what works, what's quietly broken, and the exact order of steps to make everything run
+  live on its own.
+</p>
+
+<div class="panel toc">
+  <strong>On this page</strong>
+  <ol>
+    <li class="toc"><a href="#snapshot">1. Where we stand today</a></li>
+    <li class="toc"><a href="#gaps">2. The six gaps (what's missing or broken)</a></li>
+    <li class="toc"><a href="#roadmap">3. The roadmap — step by step</a></li>
+    <li class="toc"><a href="#cost">4. What it costs to run</a></li>
+    <li class="toc"><a href="#correct-vs-build">5. Correct vs. build — at a glance</a></li>
+    <li class="toc"><a href="#decisions">6. Decisions we need from you</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="snapshot">1. Where we stand today</h2>
+
+<p>Think of the system as a pipeline with four stages. Here is which stages run on their own
+in the cloud, and which still need a human.</p>
+
+<div class="flow">
+  <span class="node live">① Collect data<br><span class="meta">vessels + weather + tides → S3</span></span>
+  <span class="arr">→</span>
+  <span class="node dead">② Build feature tables<br><span class="meta">by hand, SQL run manually</span></span>
+  <span class="arr">→</span>
+  <span class="node dead">③ Run the AI forecast<br><span class="meta">laptop script, ~1 month stale</span></span>
+  <span class="arr">→</span>
+  <span class="node live">④ Show the dashboard<br><span class="meta">hourly, but uses heuristics</span></span>
+</div>
+<div class="legend">
+  <span><span class="pill ok">Green</span> runs itself in the cloud</span>
+  <span><span class="pill bad">Red</span> needs a human / is broken</span>
+</div>
+
+<div class="panel">
+  <h3>What genuinely works (and works well)</h3>
+  <table>
+    <tr><th>Capability</th><th>Status</th><th>Notes</th></tr>
+    <tr><td>Hourly vessel positions → S3</td><td><span class="pill ok">Live</span></td><td>AIS snapshot Lambda, <code>rate(1 hour)</code></td></tr>
+    <tr><td>Hourly marine weather → S3</td><td><span class="pill ok">Live</span></td><td>Open-Meteo, <code>cron(10 * * * ? *)</code></td></tr>
+    <tr><td>Daily NOAA tides → S3</td><td><span class="pill ok">Live</span></td><td><code>cron(20 1 * * ? *)</code></td></tr>
+    <tr><td>Hourly dashboard export</td><td><span class="pill ok">Live</span></td><td>Writes <code>demo-data.json</code> to CloudFront</td></tr>
+    <tr><td>Freshness checks + email alarms</td><td><span class="pill ok">Live</span></td><td>Every 30 min; alerts on stale/zero data</td></tr>
+    <tr><td>Web dashboard (10 ports)</td><td><span class="pill ok">Live</span></td><td>React on Vercel, never white-screens</td></tr>
+    <tr><td>Trained model (AUC 0.82)</td><td><span class="pill warn">Built, not live</span></td><td>Saved in S3, but only invoked from a laptop</td></tr>
+  </table>
+  <p class="small">The raw-data engine is solid. The honest gap is everything <em>between</em> the data
+  landing and the forecast reaching the screen.</p>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="gaps">2. The six gaps</h2>
+
+<div class="panel gap">
+  <h3><span class="pill bad">Gap 1 · Critical</span> &nbsp;The AI forecast isn't live</h3>
+  <p><strong class="k">In plain terms:</strong> the "24h Forecast" card on the dashboard reads a file
+  called <code>predictions.json</code>. That file is only created when someone runs
+  <code>scripts/refresh_predictions.py</code> on their own computer. Nothing in the cloud produces it.</p>
+  <p><strong class="k">Why it matters:</strong> the file in production is dated
+  <code>2026-05-12</code> — about a month old — and one port (AEDXB) is blank. So the headline
+  "AI" feature is showing stale numbers that no longer reflect reality.</p>
+  <p class="meta">Evidence: <code>dashboard-v2/src/hooks/usePredictions.js</code> fetches a static
+  <code>/predictions.json</code>; that file is written only by the local script, never by a Lambda.</p>
+</div>
+
+<div class="panel gap">
+  <h3><span class="pill bad">Gap 2 · Critical</span> &nbsp;The feature tables don't refresh themselves</h3>
+  <p><strong class="k">In plain terms:</strong> before the model can score a port, the raw data has
+  to be rolled up into "feature tables" (vessel ring-counts joined with weather). Those tables are
+  built by running three SQL files by hand. There is no scheduled job that rebuilds them.</p>
+  <p><strong class="k">Why it matters:</strong> even if we made the forecast run in the cloud
+  (Gap 1), it would read a <em>frozen</em> table. The SQL also uses
+  <code>CREATE TABLE IF NOT EXISTS</code>, which means re-running it does nothing once the table
+  exists — it must be dropped first. This is exactly the "table update twice daily" you flagged.</p>
+  <p class="meta">Evidence: <code>athena/queries/*.sql</code> are run manually; no Lambda or schedule references them.</p>
+</div>
+
+<div class="panel gap">
+  <h3><span class="pill bad">Gap 3 · Critical (silent)</span> &nbsp;The feature SQL doesn't match what the model expects</h3>
+  <p><strong class="k">In plain terms:</strong> the model was trained to expect eight columns with
+  specific names. The checked-in feature SQL produces <em>different</em> names, and is missing one
+  column entirely.</p>
+  <table>
+    <tr><th>Model expects</th><th>SQL actually produces</th><th>Problem</th></tr>
+    <tr><td><code>avg_speed_50nm</code></td><td><code>avg_sog_50nm</code></td><td>Different name</td></tr>
+    <tr><td><code>max_wave_height_m</code></td><td><code>avg_wave_height</code></td><td>Different name <em>and</em> meaning (max vs avg)</td></tr>
+    <tr><td><code>vessels_at_anchor</code></td><td><span class="pill bad">missing</span></td><td>Not produced at all</td></tr>
+  </table>
+  <p><strong class="k">Why it matters:</strong> run the forecast against this table and it errors out
+  ("column not found"). It means the checked-in SQL is <em>not</em> the real source of truth — the
+  table that produced today's predictions had a different shape. We must reconcile them into one
+  contract before automating, or we'll automate a broken pipeline.</p>
+  <p class="meta">Evidence: compare <code>models/features.py</code> + <code>predict.py</code>'s query
+  against <code>athena/queries/feature_port_status_hourly.sql</code>.</p>
+</div>
+
+<div class="panel gap amber">
+  <h3><span class="pill warn">Gap 4 · Important</span> &nbsp;The build can break the same way it did before</h3>
+  <p><strong class="k">In plain terms:</strong> the Lambda packaging step installs libraries with a
+  plain <code>pip install</code> on your Mac. One of those libraries (<code>pydantic</code>) ships a
+  compiled binary that must be the Linux version — the same mismatch that caused the silent 3-week
+  outage. Today's <code>Makefile</code> has no guard against it.</p>
+  <p><strong class="k">Why it matters:</strong> this is your "containerize everything so data is the
+  same everywhere" goal. The proper fix is to build inside Docker
+  (<code>sam build --use-container</code>) so the package is always built on the real Lambda OS.</p>
+  <p class="meta">Evidence: <code>Makefile</code> uses <code>pip install -r requirements.txt -t</code>
+  with no <code>--platform</code> and no container.</p>
+</div>
+
+<div class="panel gap amber">
+  <h3><span class="pill warn">Gap 5 · Cleanup</span> &nbsp;The old API points at a database we deleted</h3>
+  <p><strong class="k">In plain terms:</strong> there's a FastAPI service in <code>serving/</code> that
+  still tries to connect to a Postgres database. That database was removed when we moved to Athena.
+  The code is dead — it can't run.</p>
+  <p><strong class="k">Why it matters:</strong> it's confusing and it's a trap. Either delete it or
+  rewrite it to read from Athena. Until then it's misleading dead weight.</p>
+  <p class="meta">Evidence: <code>serving/app/core/db.py</code> opens a psycopg pool to
+  <code>POSTGRES_HOST</code>; no Postgres exists anymore.</p>
+</div>
+
+<div class="panel gap amber">
+  <h3><span class="pill warn">Gap 6 · Blind spot</span> &nbsp;Monitoring can't see the forecast step</h3>
+  <p><strong class="k">In plain terms:</strong> the dashboards and email alarms watch data <em>coming
+  in</em> (Gap-free) and the export <em>going out</em>. Nothing watches whether the forecast was
+  produced, whether it's fresh, or whether the feature-table rebuild succeeded.</p>
+  <p><strong class="k">Why it matters:</strong> this is your "monitoring of all runs from ingestion to
+  serving" goal. Right now the forecast could silently freeze (it already has) and no alarm fires.</p>
+  <p class="meta">Evidence: <code>template.yaml</code> alarms cover AIS/export freshness and Lambda
+  errors only — no prediction-freshness or feature-build metric.</p>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="roadmap">3. The roadmap — step by step</h2>
+
+<p>Five phases, ordered so the highest-value, lowest-risk work comes first. Each phase has a plain
+goal, the concrete steps, and a clear "done when…" so we know when to stop.</p>
+
+<div class="callout blue">
+  <strong>How we'll work (unchanged from your rules):</strong> you write the change first, I review and
+  correct it; I never run git — I hand you the commands; we reason through each concept together.
+  This page is the plan only — nothing below has been executed.
+</div>
+
+<!-- Phase 2A -->
+<div class="panel">
+  <div class="phase-h">
+    <h3 style="margin:0">Phase 2A — Make the forecast live <em>and</em> correct</h3>
+    <span class="pill bad">Fixes Gaps 1, 2, 3</span>
+  </div>
+  <p class="effort">Highest value · do this first · ~1–2 focused sessions</p>
+  <p><strong>Goal:</strong> the 24h forecast updates itself in the cloud, from fresh tables, using
+  the exact columns the model was trained on.</p>
+  <ol class="steps">
+    <li><strong>Reconcile the feature contract (Gap 3 first — it blocks everything).</strong>
+      Line up <code>models/features.py</code> against the three SQL files and fix the column names so
+      the table the model reads (<code>feature_port_status_hourly</code>) emits
+      <code>avg_speed_50nm</code>, <code>max_wave_height_m</code>, and <code>vessels_at_anchor</code>.
+      One contract, no drift.</li>
+    <li><strong>Make the CTAS rebuildable.</strong> Switch the three queries from
+      <code>CREATE TABLE IF NOT EXISTS</code> to a drop-then-create (or <code>INSERT</code> into a
+      partitioned table) so a re-run actually refreshes the data instead of silently doing nothing.</li>
+    <li><strong>Wrap the forecast in a Lambda.</strong> Move the logic of
+      <code>scripts/refresh_predictions.py</code> into a new <code>predict_lambda</code> that loads the
+      model from S3 once, scores all 10 ports, and writes <code>predictions.json</code> straight to the
+      public bucket + invalidates CloudFront — the same way <code>export_lambda</code> already does.</li>
+    <li><strong>Point the dashboard at the cloud file.</strong> Confirm
+      <code>usePredictions.js</code> reads the published <code>predictions.json</code> URL, not a file
+      baked into the build.</li>
+  </ol>
+  <div class="dod"><b>Done when:</b> you delete the local <code>predictions.json</code>, wait an hour,
+  and the dashboard's 24h forecast still shows fresh numbers with today's timestamp — no laptop involved.</div>
+</div>
+
+<!-- Phase 2B -->
+<div class="panel">
+  <div class="phase-h">
+    <h3 style="margin:0">Phase 2B — Refresh the tables automatically, twice daily</h3>
+    <span class="pill warn">Your cost-efficiency goal</span>
+  </div>
+  <p class="effort">Do right after 2A · ~1 session</p>
+  <p><strong>Goal:</strong> feature tables rebuild on a schedule that keeps the forecast fresh without
+  burning money. Twice a day is the sweet spot — the model predicts 24h ahead, so hourly rebuilds add
+  Athena scan cost for almost no accuracy gain.</p>
+  <ol class="steps">
+    <li><strong>Add a feature-build Lambda</strong> that runs the (now rebuildable) CTAS queries in
+      order: <code>feature_vessel_inbound_hourly</code> → <code>feature_port_status_hourly</code> →
+      <code>congestion_target</code>.</li>
+    <li><strong>Schedule it twice daily</strong> in <code>template.yaml</code>, e.g.
+      <code>cron(0 5,17 * * ? *)</code> (05:00 &amp; 17:00 UTC), and have the
+      <code>predict_lambda</code> from 2A run a few minutes after each rebuild.</li>
+    <li><strong>Keep scans cheap.</strong> The queries already filter to a 30-day window and write
+      Parquet — keep that. Confirm Athena only scans the partitions it needs.</li>
+  </ol>
+  <div class="dod"><b>Done when:</b> the curated feature tables show two new partitions per day and the
+  forecast timestamp moves twice a day on its own. Athena cost stays in cents/day.</div>
+</div>
+
+<!-- Phase 2C -->
+<div class="panel">
+  <div class="phase-h">
+    <h3 style="margin:0">Phase 2C — Containerize the build (kill the platform bug forever)</h3>
+    <span class="pill warn">Fixes Gap 4 · your Docker goal</span>
+  </div>
+  <p class="effort">~half a session · low risk, high peace-of-mind</p>
+  <p><strong>Goal:</strong> every Lambda is packaged on the real Lambda operating system, so the
+  "works on my Mac, silently dead in the cloud" bug can never come back.</p>
+  <ol class="steps">
+    <li><strong>Build in Docker.</strong> Switch the deploy to <code>sam build --use-container</code>,
+      which compiles dependencies inside an Amazon Linux image — no Mac/Linux mismatch is possible.</li>
+    <li><strong>Pin it in the Makefile / CI</strong> so nobody can accidentally do a bare-metal build
+      again, and update the deploy docs.</li>
+    <li><strong>Smoke-test once</strong> by deploying and confirming each Lambda imports
+      <code>pydantic</code> without crashing (this is what bit us before).</li>
+  </ol>
+  <div class="dod"><b>Done when:</b> a clean <code>sam build --use-container &amp;&amp; sam deploy</code>
+  produces working Lambdas, and the README's deploy step says "Docker required."</div>
+</div>
+
+<!-- Phase 2D -->
+<div class="panel">
+  <div class="phase-h">
+    <h3 style="margin:0">Phase 2D — Watch the whole pipeline, end to end</h3>
+    <span class="pill warn">Fixes Gap 6 · your monitoring goal</span>
+  </div>
+  <p class="effort">~half a session</p>
+  <p><strong>Goal:</strong> if the forecast or the feature rebuild fails or goes stale, you get an
+  email — the same safety net the ingestion side already has.</p>
+  <ol class="steps">
+    <li><strong>Emit metrics from the new Lambdas</strong> (2A &amp; 2B): a "prediction freshness"
+      metric and a "feature rows written" metric, mirroring the existing
+      <code>records_written</code> pattern.</li>
+    <li><strong>Add two alarms</strong>: prediction older than ~14h, and feature-build wrote zero
+      rows — both wired to the existing SNS email topic.</li>
+    <li><strong>Add two widgets</strong> to the CloudWatch dashboard so the forecast step is visible
+      next to ingestion.</li>
+  </ol>
+  <div class="dod"><b>Done when:</b> deliberately skipping a forecast run triggers an email within the
+  alarm window, and the dashboard shows the forecast freshness line.</div>
+</div>
+
+<!-- Phase 2E -->
+<div class="panel">
+  <div class="phase-h">
+    <h3 style="margin:0">Phase 2E — Clear out the dead serving code</h3>
+    <span class="pill info">Fixes Gap 5 · housekeeping</span>
+  </div>
+  <p class="effort">~quick · do last or whenever</p>
+  <p><strong>Goal:</strong> no misleading code that points at infrastructure we deleted.</p>
+  <ol class="steps">
+    <li><strong>Decide:</strong> do we still want a live HTTP API, or is the published JSON enough?
+      (Recommendation: the static JSON already serves the dashboard — we likely don't need the API yet.)</li>
+    <li><strong>If not needed:</strong> remove <code>serving/app/</code> and its Postgres settings.</li>
+    <li><strong>If needed later:</strong> rewrite <code>db.py</code>/<code>queries.py</code> to read
+      from Athena instead of Postgres, and drop it behind the same auth as the dashboard.</li>
+  </ol>
+  <div class="dod"><b>Done when:</b> there is no code referencing <code>POSTGRES_*</code> anywhere in
+  the repo.</div>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="cost">4. What it costs to run</h2>
+<div class="panel">
+  <p>The whole point of the architecture is near-zero idle cost. Phase 2 keeps it that way.</p>
+  <table>
+    <tr><th>Item</th><th>Driver</th><th>Rough monthly cost</th></tr>
+    <tr><td>Lambda (all functions)</td><td>Short hourly/twice-daily runs</td><td>Free tier → ~$0</td></tr>
+    <tr><td>S3 storage</td><td>NDJSON + Parquet, 90-day Glacier tiering</td><td>Cents</td></tr>
+    <tr><td>Athena</td><td>Scans on twice-daily rebuild (30-day window, Parquet)</td><td>Cents/day if windows stay tight</td></tr>
+    <tr><td>CloudFront + Vercel</td><td>Static JSON, low traffic</td><td>Free tier → ~$0</td></tr>
+  </table>
+  <p class="small"><strong>Cost lever:</strong> twice-daily table rebuilds (Phase 2B) instead of hourly
+  is the single biggest Athena saving — and costs nothing in accuracy because the model forecasts a full
+  day ahead.</p>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="correct-vs-build">5. Correct vs. build — at a glance</h2>
+<div class="panel">
+  <table>
+    <tr><th>#</th><th>Item</th><th>Type</th><th>Phase</th><th>Priority</th></tr>
+    <tr><td>3</td><td>Feature SQL ↔ model column mismatch</td><td><span class="pill bad">Correct</span></td><td>2A</td><td>Critical</td></tr>
+    <tr><td>2</td><td><code>CREATE IF NOT EXISTS</code> never refreshes</td><td><span class="pill bad">Correct</span></td><td>2A/2B</td><td>Critical</td></tr>
+    <tr><td>1</td><td>Forecast runs only on a laptop</td><td><span class="pill warn">Build</span></td><td>2A</td><td>Critical</td></tr>
+    <tr><td>2</td><td>Scheduled twice-daily table rebuild</td><td><span class="pill warn">Build</span></td><td>2B</td><td>High</td></tr>
+    <tr><td>4</td><td>Docker-based build</td><td><span class="pill warn">Correct</span></td><td>2C</td><td>High</td></tr>
+    <tr><td>6</td><td>Forecast monitoring + alarms</td><td><span class="pill warn">Build</span></td><td>2D</td><td>Medium</td></tr>
+    <tr><td>5</td><td>Dead Postgres serving code</td><td><span class="pill info">Correct</span></td><td>2E</td><td>Low</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================= -->
+<h2 id="decisions">6. Decisions we need from you</h2>
+<div class="panel">
+  <ol>
+    <li><strong>Forecast cadence:</strong> twice daily (recommended, cheapest) — or do you want it more
+      often for the demo "wow" factor?</li>
+    <li><strong>The old API:</strong> delete <code>serving/</code> now, or keep it parked for a future
+      Athena rewrite?</li>
+    <li><strong>Data accumulation:</strong> the original plan was to let ingestion run until ~2 July to
+      gather a larger training set, then retrain. Do Phase 2A–2D now on the current data, and retrain on
+      the bigger set in July? (Recommended — the plumbing fixes don't need to wait for more data.)</li>
+  </ol>
+  <div class="callout red">
+    <strong>My recommendation:</strong> start with <strong>Phase 2A, step 1</strong> — reconciling the
+    feature contract (Gap 3). It's small, it's the root cause that silently breaks everything downstream,
+    and once it's solid, automating the forecast (2A) and scheduling rebuilds (2B) become straightforward.
+    Everything else builds on that one fix.
+  </div>
+</div>
+
+<hr/>
+<p class="small">Generated as a review-first plan. No source files were modified. When you're ready,
+we'll start with Phase 2A step 1 — you write it, I review.</p>
+
+</div>
+</body>
+</html>

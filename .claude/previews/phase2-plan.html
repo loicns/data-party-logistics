@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPL — Phase 2 Plan & Visibility Schedule</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF9F5;--bg2:#F0EEE6;--bg3:#E8E6DC;
+    --ink:#141413;--ink2:#6B6A63;--ink3:#94938B;
+    --line:rgba(20,20,19,.10);
+    --coral:#D97757;--coral-ink:#B8543A;--coral-bg:rgba(217,119,87,.10);
+    --green:#3D9970;--green-bg:rgba(61,153,112,.12);
+    --blue:#2563EB;--blue-bg:rgba(37,99,235,.08);
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+    --serif:"Newsreader",Georgia,serif;
+    --sans:"Inter",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.62}
+  .shell{max-width:780px;margin:0 auto;padding:36px 22px 90px}
+
+  /* Header */
+  .top{margin-bottom:24px}
+  .kick{font-family:var(--mono);font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--coral-ink);margin-bottom:8px}
+  h1{font-family:var(--serif);font-weight:500;font-size:2rem;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px}
+  .sub{color:var(--ink2);font-size:1rem}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:28px;position:sticky;top:0;background:var(--bg);padding-top:8px;z-index:5}
+  .tab{font-family:var(--sans);font-size:.82rem;font-weight:600;color:var(--ink3);background:none;border:none;padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+  .tab:hover{color:var(--ink2)}
+  .tab.active{color:var(--coral-ink);border-bottom-color:var(--coral)}
+
+  .page{display:none;animation:fade .25s ease}
+  .page.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  h2{font-family:var(--serif);font-weight:500;font-size:1.4rem;margin-bottom:6px;letter-spacing:-.01em}
+  h3{font-size:.95rem;font-weight:700;margin:22px 0 8px}
+  p{margin-bottom:12px;color:var(--ink2)}
+  .pagelead{font-size:1rem;color:var(--ink);margin-bottom:20px}
+
+  code{font-family:var(--mono);font-size:.85em;background:var(--bg3);padding:1px 5px;border-radius:4px}
+  pre{background:#1a1a18;color:#e8e6dc;border-radius:8px;padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:.76rem;line-height:1.55;margin:10px 0}
+  pre .c{color:#7f8a7a}pre .k{color:#D97757}pre .s{color:#6EE7B7}
+
+  .step{display:flex;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+  .step:first-of-type{border-top:none}
+  .snum{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;font-size:.78rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .scontent{flex:1}
+  .scontent .t{font-weight:600;margin-bottom:3px}
+  .scontent .d{font-size:.86rem;color:var(--ink2)}
+
+  .callout{border-left:3px solid var(--blue);background:var(--blue-bg);padding:11px 15px;border-radius:0 8px 8px 0;font-size:.87rem;color:var(--ink2);margin:14px 0}
+  .callout.warn{border-color:var(--coral);background:var(--coral-bg)}
+  .callout.good{border-color:var(--green);background:var(--green-bg)}
+  .callout b{color:var(--ink)}
+
+  table{width:100%;border-collapse:collapse;font-size:.84rem;margin:14px 0}
+  th{text-align:left;background:var(--bg3);padding:8px 11px;font-weight:600;font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2)}
+  td{padding:9px 11px;border-top:1px solid var(--line);vertical-align:top}
+  .when{font-family:var(--mono);font-size:.78rem;color:var(--coral-ink);white-space:nowrap;font-weight:600}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:20px}
+  .pill.now{background:var(--coral-bg);color:var(--coral-ink)}
+  .pill.next{background:var(--blue-bg);color:var(--blue)}
+  .pill.park{background:var(--bg3);color:var(--ink3)}
+  .pill.done{background:var(--green-bg);color:var(--green)}
+
+  .channel{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+  .channel:first-of-type{border-top:none}
+  .channel .nm{font-weight:600;min-width:90px}
+  .channel .ds{font-size:.85rem;color:var(--ink2)}
+
+  .rule{background:var(--ink);color:#fff;border-radius:12px;padding:16px 20px;margin:16px 0}
+  .rule p{color:#D9D6CE;margin:0}
+  .rule b{color:#6EE7B7}
+
+  .foot{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-family:var(--serif);font-size:1.05rem;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="top">
+    <p class="kick">Data Party Logistics · after v1</p>
+    <h1>Phase 2 — ship public, then go real-time</h1>
+    <p class="sub">Your finishing plan + a sustainable visibility schedule. Five pages — read in order.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-p="0">① Where you are</button>
+    <button class="tab" data-p="1">② Visibility schedule</button>
+    <button class="tab" data-p="2">③ Next phase — build</button>
+    <button class="tab" data-p="3">④ Serving reality</button>
+    <button class="tab" data-p="4">⑤ Guardrails</button>
+  </div>
+
+  <!-- PAGE 0 -->
+  <section class="page active" data-p="0">
+    <h2>You finished one thing. That's the milestone.</h2>
+    <p class="pagelead">The full pipeline runs end-to-end and you built every stage. But "works on my laptop" is not "shipped." Shipping has three more moves — do them this weekend before anything new.</p>
+
+    <h3>What's actually done</h3>
+    <table>
+      <tr><td><span class="pill done">DONE</span></td><td>AIS ingestion (live, hourly, self-healing after the pydantic fix)</td></tr>
+      <tr><td><span class="pill done">DONE</span></td><td>Athena feature tables + congestion label</td></tr>
+      <tr><td><span class="pill done">DONE</span></td><td><code>build_dataset.py</code> → <code>train.py</code> (AUC 0.82) → <code>predict.py</code></td></tr>
+      <tr><td><span class="pill done">DONE</span></td><td>Forecast card rendering in the dashboard (locally)</td></tr>
+    </table>
+
+    <h3>What "shipped" still requires — Phase 2A (this weekend)</h3>
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="t">Merge to main + production deploy</div><div class="d">You're on <code>chore/cost-shutdown-kit</code>. Merge your work to <code>main</code> so Vercel deploys to your real production URL — not just a preview.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="t">Polish the README</div><div class="d">One architecture diagram, one screenshot of the dashboard, a 3-line "what it does," and the run commands. This is the anchor every public post links to.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="t">Publish the launch post</div><div class="d">See page ②. This is the move that turns "I built" into "I shipped." Without it, v1 doesn't count.</div></div></div>
+
+    <div class="callout good"><b>The win to internalize:</b> per your own <code>finish-first.html</code> — started 7, finished 0. This is finish #1. Don't let it sit at 99%. The post is the last 1%.</div>
+  </section>
+
+  <!-- PAGE 1 -->
+  <section class="page" data-p="1">
+    <h2>Public visibility schedule</h2>
+    <p class="pagelead">One substantive post per week, each tied to something you actually did. Never manufacture content — describe real work. This builds a credible AI/ML engineer profile without becoming a second job.</p>
+
+    <div class="callout warn"><b>The rule that keeps you honest:</b> ship the work first, post second. A post about code that doesn't run is the trap that started your 7-unfinished list.</div>
+
+    <h3>The cadence (anchored to today, Fri 5 Jun 2026)</h3>
+    <table>
+      <tr><th>When</th><th>Post</th><th>The hook</th></tr>
+      <tr><td class="when">This weekend</td><td><b>Launch</b> — "I shipped a live port-congestion predictor"</td><td>What it does + the pydantic Lambda bug that froze ingestion for 3 weeks. Link repo + live URL.</td></tr>
+      <tr><td class="when">Fri 12 Jun</td><td>Deep-dive #1 — time-aware splits</td><td>"Why a random train/test split silently lies to you in time-series ML." Show the leakage diagram.</td></tr>
+      <tr><td class="when">Fri 19 Jun</td><td>Deep-dive #2 — train/serve skew</td><td>The shared <code>FEATURES</code> contract. The bug that waits for you when train and predict disagree on columns.</td></tr>
+      <tr><td class="when">Fri 26 Jun</td><td>Cost engineering</td><td>"Running a live ML pipeline for ~$15/month on AWS serverless" — your pause/resume kit, the Lambda-not-server choice.</td></tr>
+      <tr><td class="when">Thu 2 Jul</td><td><b>Milestone</b> — retrained on 1 month of data</td><td>Before/after AUC. Coincides with your data maturing + the shutdown reminder. Real proof the system improves itself.</td></tr>
+      <tr><td class="when">Monthly after</td><td>One milestone post per shipped feature</td><td>Real-time API, auto-refresh, weather features — whatever you actually finish.</td></tr>
+    </table>
+
+    <h3>Where to post</h3>
+    <div class="channel"><div class="nm">LinkedIn</div><div class="ds">Primary for hiring. Every post here. Tag with #MachineLearning #MLOps #AWS.</div></div>
+    <div class="channel"><div class="nm">X / Twitter</div><div class="ds">The ML/AI community lives here. Thread format for the deep-dives.</div></div>
+    <div class="channel"><div class="nm">GitHub</div><div class="ds">The README is the anchor. Every post links back to it. Pin the repo on your profile.</div></div>
+    <div class="channel"><div class="nm">dev.to / blog</div><div class="ds">Optional long-form home for the two deep-dives — cross-post, link from LinkedIn.</div></div>
+
+    <div class="callout"><b>Format for every post:</b> 1 sentence what it does · 1 thing that broke + how you fixed it · 1 link. That's it. Brevity reads as confidence.</div>
+  </section>
+
+  <!-- PAGE 2 -->
+  <section class="page" data-p="2">
+    <h2>Next phase — what to build, in order</h2>
+    <p class="pagelead">Three scoped sub-phases. Each ends with something shippable and postable. Do not start the next until the current is live.</p>
+
+    <h3><span class="pill next">2B</span> &nbsp;Auto-refresh predictions (week 1–2)</h3>
+    <p>Right now <code>predictions.json</code> is generated by hand and committed. Make it refresh itself so the dashboard is always current — without you running anything.</p>
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="t">Schedule the feature-table rebuild first</div><div class="d">Your CTAS tables are frozen May-12 snapshots. Freshness starts here: a scheduled job that re-runs the 3 CTAS queries (or converts them to Athena views). Without this, refreshing predictions just re-predicts stale features.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="t">Wrap refresh_predictions in a Lambda handler</div><div class="d">A thin handler in <code>serverless/handlers/</code> that imports your refresh logic and writes <code>predictions.json</code> to the public S3/CloudFront bucket (not the repo).</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="t">Point the dashboard at the live URL</div><div class="d">Change <code>usePredictions()</code> to fetch the CloudFront predictions URL instead of the bundled <code>/predictions.json</code>. Decoupled, always fresh.</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scontent"><div class="t">Add an EventBridge schedule + SAM deploy</div><div class="d">Hourly <code>ScheduleV2</code> in <code>template.yaml</code>, same pattern as your existing 5 Lambdas. <code>sam build --use-container &amp;&amp; sam deploy</code>.</div></div></div>
+    <div class="callout good">Postable outcome: "My congestion forecasts now refresh hourly, fully automated — EventBridge → Lambda → S3 → dashboard."</div>
+
+    <h3><span class="pill next">2C</span> &nbsp;Retrain on matured data (~early July)</h3>
+    <p>Your ingestion has been collecting since you fixed it. In ~4 weeks you'll have enough for a model worth trusting.</p>
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="t">Rebuild the 3 feature tables</div><div class="d">DROP + recreate in order (vessel → port_status → congestion_target) on the now-larger raw data.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="t">Re-run the pipeline you already built</div><div class="d"><code>build_dataset.py</code> → 1000+ rows → <code>train.py</code> → real AUC. <code>predict.py</code> auto-uses the new <code>model_latest.pkl</code>. Zero new code.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="t">Post the before/after</div><div class="d">"168 rows → 5000 rows. AUC 0.82 (noisy) → 0.XX (real). Here's what more data did." This is your strongest technical post.</div></div></div>
+    <div class="callout good">This is why the whole pipeline was worth building cleanly: retraining is one command, not a rewrite.</div>
+
+    <h3><span class="pill park">2D</span> &nbsp;Real-time API (parked — see page ④)</h3>
+    <p>The guide's "Option B" needs the serving layer rebuilt onto Athena first. Bigger than it looks. Park it until 2B + 2C are live and posted.</p>
+  </section>
+
+  <!-- PAGE 3 -->
+  <section class="page" data-p="3">
+    <h2>Serving-layer reality check</h2>
+    <p class="pagelead">Before you touch <code>serving/app/</code>, know what you're walking into. I read it — it's built for infrastructure you already deleted.</p>
+
+    <div class="callout warn"><b>The trap:</b> <code>serving/app/core/config.py</code> requires <code>postgres_host</code>, <code>postgres_user</code>, etc. Your <code>routes.py</code> runs SQL via <code>get_conn()</code> against Postgres. But you <b>deleted the RDS instance</b> and migrated to Athena (commits <code>e469b7c</code>, <code>60d2f78</code>). This FastAPI app cannot run as-is — it connects to a database that no longer exists.</div>
+
+    <h3>What that means for "Option B"</h3>
+    <table>
+      <tr><th>Assumption in the guide</th><th>Reality</th></tr>
+      <tr><td>"Wrap predict.py in FastAPI"</td><td>The FastAPI app exists but targets Postgres, not Athena, and serves <b>heuristics</b> (<code>/predictive</code>), not your ML model.</td></tr>
+      <tr><td>"Quick endpoint"</td><td>You'd rewrite <code>core/db.py</code> + <code>core/queries.py</code> from Postgres to Athena, then add a new model-backed <code>/forecast</code> route.</td></tr>
+    </table>
+
+    <h3>The honest path when you reach 2D</h3>
+    <div class="step"><div class="snum">1</div><div class="scontent"><div class="t">Decide: revive FastAPI, or go serverless</div><div class="d">Option B-lite: skip the FastAPI app entirely. A single Lambda + API Gateway that calls your <code>predict()</code> function against Athena. Far less code than reviving the Postgres app.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scontent"><div class="t">Add a model-backed forecast endpoint</div><div class="d"><code>GET /forecast/{port}</code> → loads <code>model_latest.pkl</code>, queries latest Athena row, returns the prediction dict. This is <code>predict.py</code> behind HTTP.</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scontent"><div class="t">Frontend fetches the live endpoint</div><div class="d">Point <code>usePredictions()</code> at the API Gateway URL. Now predictions are true real-time, per request.</div></div></div>
+
+    <div class="callout"><b>Architect's call:</b> for 10 ports refreshed hourly, <b>2B (scheduled S3 file) beats 2D (live API)</b> on cost and simplicity. A real-time API only earns its complexity if you need sub-hourly, on-demand predictions. You probably don't yet. Build 2B; treat 2D as a "when there's real demand" upgrade.</div>
+  </section>
+
+  <!-- PAGE 4 -->
+  <section class="page" data-p="4">
+    <h2>Guardrails — so this stays finished</h2>
+    <p class="pagelead">You have a documented finishing problem. These are the rules that keep Phase 2 from becoming projects 8, 9, 10.</p>
+
+    <div class="rule"><p><b>1. Ship 2A before anything else.</b> Merge, deploy, post. v1 is not done until a stranger has seen it. No 2B until the launch post is live.</p></div>
+    <div class="rule"><p><b>2. One sub-phase at a time.</b> 2B fully live + posted before 2C. 2C before you even open <code>serving/app/</code>.</p></div>
+    <div class="rule"><p><b>3. Stuck means make it smaller — never start something new.</b> If 2B stalls, cut scope (skip the feature-table rebuild, just automate the existing flow), don't pivot to a new idea.</p></div>
+    <div class="rule"><p><b>4. The agentic-tracker stays closed.</b> It's a productivity tool for avoiding work. DPL is the work. No USSD, no new repos, no new courses until DPL v2 is shipped and posted.</p></div>
+    <div class="rule"><p><b>5. Every phase ends with a post.</b> If you didn't post it, you didn't finish it. The post is the definition of done.</p></div>
+
+    <h3>The single source of truth for "what's next"</h3>
+    <p>When you sit down and feel the pull to start something, the answer is always on page ③, the topmost item not yet posted. That's it. No re-deciding.</p>
+
+    <p class="foot">Stop collecting beginnings. You just shipped one ending — now post it, then ship the next. That's the whole game.</p>
+  </section>
+
+</div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const pages = document.querySelectorAll('.page');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    const p = t.dataset.p;
+    tabs.forEach(x => x.classList.toggle('active', x.dataset.p === p));
+    pages.forEach(x => x.classList.toggle('active', x.dataset.p === p));
+    window.scrollTo({top:0, behavior:'smooth'});
+  }));
+</script>
+</body>
+</html>

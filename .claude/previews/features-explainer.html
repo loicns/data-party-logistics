@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why port_code and timestamps aren't features</title>
+<style>
+  :root {
+    --bg: #FAF9F5; --bg2: #F0EEE6; --bg3: #E8E6DC;
+    --ink: #141413; --ink2: #6B6A63; --ink3: #94938B;
+    --red: #D97757; --red-bg: rgba(217,119,87,.10);
+    --green: #3D9970; --green-bg: rgba(61,153,112,.12);
+    --blue: #2563EB; --blue-bg: rgba(37,99,235,.10);
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --sans: "Inter", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.6; padding: 32px 20px 64px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+  .sub { color: var(--ink2); margin-bottom: 32px; font-size: .95rem; }
+  h2 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+  .section { margin-bottom: 40px; }
+  .label { font-family: var(--mono); font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 8px; }
+
+  /* Table */
+  .tbl { width: 100%; border-collapse: collapse; font-size: .88rem; margin-bottom: 12px; }
+  .tbl th { background: var(--bg3); padding: 8px 12px; text-align: left; font-weight: 600; font-size: .78rem; letter-spacing: .04em; }
+  .tbl td { padding: 8px 12px; border-top: 1px solid var(--bg3); font-family: var(--mono); font-size: .82rem; }
+  .tbl tr.highlight td { background: var(--blue-bg); }
+
+  /* Pill tags */
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: .72rem; font-weight: 600; font-family: var(--mono); letter-spacing: .04em; }
+  .pill.bad { background: var(--red-bg); color: var(--red); }
+  .pill.good { background: var(--green-bg); color: var(--green); }
+  .pill.maybe { background: var(--blue-bg); color: var(--blue); }
+
+  /* Math model box */
+  .model-box { background: var(--ink); color: #fff; border-radius: 14px; padding: 20px 24px; margin-bottom: 16px; }
+  .model-box .title { font-size: .72rem; font-family: var(--mono); letter-spacing: .1em; color: #94938B; text-transform: uppercase; margin-bottom: 10px; }
+  .equation { font-family: var(--mono); font-size: 1rem; color: #fff; line-height: 1.8; }
+  .eq-bad { color: #F87171; }
+  .eq-good { color: #6EE7B7; }
+
+  /* Flow diagram */
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin-bottom: 16px; }
+  .flow-box { background: var(--bg2); border: 1px solid var(--bg3); border-radius: 10px; padding: 10px 14px; font-size: .85rem; text-align: center; min-width: 110px; }
+  .flow-box.active { background: var(--blue-bg); border-color: var(--blue); }
+  .flow-box.dim { opacity: .4; }
+  .flow-arrow { color: var(--ink3); font-size: 1.2rem; padding: 0 8px; }
+  .flow-box .small { font-family: var(--mono); font-size: .68rem; color: var(--ink3); margin-top: 4px; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+  .card { border-radius: 12px; padding: 16px 18px; border: 1px solid var(--bg3); }
+  .card.red { background: var(--red-bg); border-color: rgba(217,119,87,.25); }
+  .card.green { background: var(--green-bg); border-color: rgba(61,153,112,.25); }
+  .card.blue { background: var(--blue-bg); border-color: rgba(37,99,235,.20); }
+  .card h3 { font-size: .9rem; font-weight: 700; margin-bottom: 8px; }
+  .card p { font-size: .85rem; color: var(--ink2); line-height: 1.55; }
+  .card code { font-family: var(--mono); font-size: .82em; background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; }
+
+  .note { background: var(--bg2); border-left: 3px solid var(--red); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: .88rem; color: var(--ink2); margin-bottom: 16px; }
+  .note strong { color: var(--ink); }
+
+  .final { background: var(--ink); color: #fff; border-radius: 14px; padding: 20px 24px; }
+  .final h3 { color: #fff; margin-bottom: 12px; font-size: .95rem; }
+  .final-row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.1); font-size: .88rem; font-family: var(--mono); }
+  .final-row:first-of-type { border-top: none; }
+  .final-row .col { color: #6EE7B7; }
+  .final-row .use { color: #94938B; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Why <code style="font-size:.9em">port_code</code> and <code style="font-size:.9em">observation_hour</code> are not features</h1>
+  <p class="sub">And what you actually do with them — plain English with examples.</p>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="label">The core rule</div>
+    <h2>A model is math. It can only learn from numbers.</h2>
+
+    <div class="model-box">
+      <div class="title">What LightGBM does internally (simplified)</div>
+      <div class="equation">
+        prediction = <span class="eq-good">vessels_in_10nm</span> × 0.31
+                   + <span class="eq-good">vessels_at_anchor</span> × 0.44
+                   + <span class="eq-good">hour_of_day</span> × 0.12
+                   + …
+      </div>
+      <div class="equation" style="margin-top:12px">
+        prediction = <span class="eq-bad">"BEANR"</span> × ???
+                   &nbsp;&nbsp;← <span style="color:#F87171">can't multiply a string</span>
+      </div>
+      <div class="equation" style="margin-top:8px">
+        prediction = <span class="eq-bad">2026-05-11 18:00:00</span> × ???
+                   &nbsp;&nbsp;← <span style="color:#F87171">multiplying a timestamp is meaningless</span>
+      </div>
+    </div>
+
+    <p style="color:var(--ink2); font-size:.9rem">The model finds patterns by doing arithmetic on columns. You can't multiply a port name or a full timestamp by a weight — there's no sensible number to put there.</p>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="label">But what DO you use them for?</div>
+    <h2>Each column has a job — just not "feature."</h2>
+
+    <div class="cards">
+      <div class="card red">
+        <h3>❌ port_code as a raw feature</h3>
+        <p>String <code>"BEANR"</code> → model can't learn from it. Different ports have totally different congestion patterns, but the model can't see that from a text label.</p>
+      </div>
+      <div class="card green">
+        <h3>✅ port_code → one-hot encoded</h3>
+        <p>Turn it into numbers: <code>is_BEANR=1, is_NLRTM=0, is_SGSIN=0 …</code>. Now the model <em>can</em> learn "BEANR congests differently than SGSIN." That's v2 — not needed for MVP.</p>
+      </div>
+      <div class="card red">
+        <h3>❌ observation_hour as a raw feature</h3>
+        <p>A full timestamp like <code>2026-05-11 18:00:00</code> is meaningless to the model. It can't learn "18:00 is rush hour" from a raw datetime — it'd just see a big integer.</p>
+      </div>
+      <div class="card green">
+        <h3>✅ observation_hour → already extracted!</h3>
+        <p>You already did this in the SQL: <code>hour_of_day=18</code>, <code>day_of_week=7</code>. The model learns from <em>those</em> — the timestamp's job is done. It only stays in the df for the sort step.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="label">The chronological split — observation_hour's real job</div>
+    <h2>observation_hour is your sort key, not a feature.</h2>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>observation_hour</th><th>port_code</th><th>vessels_in_10nm</th><th>hour_of_day</th><th>is_congested_24h</th><th>split</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>2026-05-10 01:00</td><td>BEANR</td><td>412</td><td>1</td><td>0</td><td><span class="pill good">TRAIN</span></td></tr>
+        <tr><td>2026-05-10 02:00</td><td>NLRTM</td><td>389</td><td>2</td><td>1</td><td><span class="pill good">TRAIN</span></td></tr>
+        <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td><span class="pill good">TRAIN</span></td></tr>
+        <tr class="highlight"><td>2026-05-12 10:00</td><td>BEANR</td><td>521</td><td>10</td><td>0</td><td>← 80% cutoff</td></tr>
+        <tr><td>2026-05-12 11:00</td><td>DEHAM</td><td>601</td><td>11</td><td>1</td><td><span class="pill bad">TEST</span></td></tr>
+        <tr><td>2026-05-12 12:00</td><td>SGSIN</td><td>490</td><td>12</td><td>0</td><td><span class="pill bad">TEST</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <strong>The split in code is one line:</strong><br>
+      Sort df by <code>observation_hour</code> ascending. Then: first 80% of rows → train, last 20% → test. No shuffle. No randomness. After the split, <code>observation_hour</code> and <code>port_code</code> are dropped from X — they were never in FEATURES to begin with.
+    </div>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="label">Full picture — every column's role</div>
+    <div class="final">
+      <h3>Where each column actually goes</h3>
+      <div class="final-row"><span class="col">vessels_in_10nm/50nm/200nm</span><span class="use">→ FEATURE (present-time signal)</span></div>
+      <div class="final-row"><span class="col">vessels_at_anchor</span><span class="use">→ FEATURE (strongest signal)</span></div>
+      <div class="final-row"><span class="col">avg_speed_50nm</span><span class="use">→ FEATURE (slow = congested)</span></div>
+      <div class="final-row"><span class="col">max_wave_height_m</span><span class="use">→ FEATURE (weather context)</span></div>
+      <div class="final-row"><span class="col">hour_of_day</span><span class="use">→ FEATURE (already extracted from timestamp)</span></div>
+      <div class="final-row"><span class="col">day_of_week</span><span class="use">→ FEATURE (weekly pattern)</span></div>
+      <div class="final-row"><span class="col" style="color:#F87171">observation_hour</span><span class="use">→ SORT KEY only — dropped before training</span></div>
+      <div class="final-row"><span class="col" style="color:#F87171">port_code</span><span class="use">→ IDENTIFIER only — dropped for MVP (v2: one-hot encode it)</span></div>
+      <div class="final-row"><span class="col" style="color:#F87171">is_congested_24h</span><span class="use">→ TARGET — what the model predicts</span></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
