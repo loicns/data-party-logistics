@@ -69,6 +69,8 @@ jobs:
       # Post-deploy smoke test: invoke the freshness Lambda (read-only — it
       # only inspects S3 object ages). Catches ImportModuleError / wrong-arch /
       # missing-bundle regressions in CI instead of silently in production.
+      # Also validates that the partition-aware probe returns a recent AIS age
+      # (< 120 min) so a stale-freshness regression doesn't slip past CI.
       - name: Smoke test deployed Lambda
         run: |
           aws lambda invoke --function-name "$STACK_NAME-freshness" \
@@ -78,5 +80,11 @@ jobs:
           import json
           out = json.load(open('/tmp/smoke.json'))
           assert 'errorMessage' not in out, f'Lambda errored: {out}'
+          ages = out.get('ages_minutes', {})
+          ais_age = ages.get('AisFreshnessMinutes')
+          if ais_age is not None:
+              assert ais_age < 120, \
+                  f'AIS age {ais_age:.1f} min exceeds 120 min threshold — partition probe may be broken'
+              print(f'AIS age: {ais_age:.1f} min — OK')
           print('smoke test OK')
           "

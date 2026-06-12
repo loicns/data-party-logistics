@@ -165,7 +165,7 @@ export function DataProvider({ children }) {
         const liveData = await loadLivePorts();
         if (cancelled) return;
         setData(liveData);
-        setCurrentPortCode(Object.keys(liveData.ports)[0] ?? null);
+        setCurrentPortCode((prev) => prev ?? Object.keys(liveData.ports)[0] ?? null);
         setError(null);
         return;
       } catch {
@@ -188,14 +188,19 @@ export function DataProvider({ children }) {
         ),
       };
       setData(normalized);
-      setCurrentPortCode(Object.keys(normalized.ports)[0] ?? null);
+      setCurrentPortCode((prev) => prev ?? Object.keys(normalized.ports)[0] ?? null);
       setError(null);
     }
 
     loadData();
 
+    // Re-fetch every 10 minutes so an open tab picks up the hourly export
+    // without a manual reload.
+    const interval = setInterval(loadData, 10 * 60 * 1000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
