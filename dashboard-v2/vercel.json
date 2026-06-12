@@ -3,5 +3,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/live-data.json",
+      "destination": "https://dz4lgcial54jx.cloudfront.net/demo-data.json"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

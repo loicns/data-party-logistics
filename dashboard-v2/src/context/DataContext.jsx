@@ -117,7 +117,30 @@ async function fetchJson(url, retries = 1) {
 // VITE_DATA_URL  → set in Vercel env vars to your CloudFront JSON URL
 //   e.g. https://d1234.cloudfront.net/api/v1/demo-data.json
 // Unset in local dev → falls back to window.DEMO_DATA (public/demo-data.js fixture)
-const CLOUD_DATA_URL = import.meta.env.VITE_DATA_URL ?? null;
+//
+// In a production browser, a cross-origin CloudFront URL is rewritten to the
+// same-origin Vercel proxy (/live-data.json, see vercel.json). CloudFront's
+// CORS headers are cached inconsistently per edge PoP — `mode: cors` fetches
+// fail intermittently with "Failed to fetch" while no-cors succeeds — so the
+// dashboard silently fell back to the stale bundled fixture. Routing through
+// the same origin removes CORS from the path entirely. Local dev keeps the
+// direct URL (localhost CORS works) so no Vite proxy is needed.
+function resolveDataUrl() {
+  const configured = import.meta.env.VITE_DATA_URL ?? null;
+  if (!configured) return null;
+  if (!import.meta.env.PROD || typeof window === 'undefined') return configured;
+  try {
+    const target = new URL(configured, window.location.origin);
+    if (target.origin !== window.location.origin) {
+      return target.pathname.endsWith('.json') ? '/live-data.json' : '/live-data.js';
+    }
+  } catch {
+    // Not an absolute URL — already same-origin, use as-is.
+  }
+  return configured;
+}
+
+const CLOUD_DATA_URL = resolveDataUrl();
 
 async function loadCloudData() {
   if (!CLOUD_DATA_URL) throw new Error('No VITE_DATA_URL configured');
@@ -127,7 +150,8 @@ async function loadCloudData() {
 }
 
 async function loadLivePorts() {
-  // In production (Vercel) fetch directly from CloudFront — single request, no CORS issue.
+  // In production this is the same-origin /live-data.json Vercel proxy (no CORS);
+  // in local dev it's the direct CloudFront URL from VITE_DATA_URL.
   if (CLOUD_DATA_URL) return loadCloudData();
 
   const apiBases = ['/api', 'http://localhost:8000/api'];
