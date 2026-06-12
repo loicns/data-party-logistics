@@ -81,6 +81,24 @@ function normalizePort(port) {
   };
 }
 
+// Parse a payload that is either plain JSON or a `window.DEMO_DATA = {...};`
+// script. The export writes both a .json (for this fetch path) and a .js (the
+// offline fallback); tolerating the JS wrapper here means a URL accidentally
+// pointed at demo-data.js still works instead of silently falling back to the
+// stale bundled fixture.
+function parseDataPayload(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error('Response is neither JSON nor a window.DEMO_DATA script');
+    }
+    return JSON.parse(text.slice(start, end + 1));
+  }
+}
+
 // One retry with backoff: a transient CloudFront/network blip should not
 // blank the whole dashboard.
 async function fetchJson(url, retries = 1) {
@@ -88,7 +106,7 @@ async function fetchJson(url, retries = 1) {
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-      return await response.json();
+      return parseDataPayload(await response.text());
     } catch (error) {
       if (attempt >= retries) throw error;
       await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
