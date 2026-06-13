@@ -1,0 +1,797 @@
+{
+  "schemaVersion": "2026-06-13.2",
+  "title": "Data Party Logistics Master Roadmap",
+  "lastUpdated": "2026-06-13",
+  "visibility": "public-read",
+  "publicAudience": "Stakeholders, pilot users, advisors, and delivery agents who need a shared view of completed, active, and backlog work.",
+  "sourceOfTruth": {
+    "currentMode": "code-reviewed-json",
+    "currentPath": "dashboard-v2/public/roadmap.json",
+    "publicReadPath": "AWS S3 public dashboard bucket through CloudFront as roadmap.json",
+    "authorizedAdminPath": "Future admin UI: authenticated user through Cognito or an equivalent identity provider, API Gateway, Lambda validation, S3 PutObject, CloudTrail audit, then CloudFront invalidation.",
+    "writePolicy": "Public users can only read. Roadmap edits must happen through code review or an authenticated admin writer with audit logging."
+  },
+  "statusDefinitions": {
+    "completed": "Shipped or documented well enough to rely on as the current baseline.",
+    "doing": "Actively being implemented, validated, or prepared for live use.",
+    "backlog": "Planned work not yet started or waiting on prerequisites."
+  },
+  "sourceDocuments": [
+    {
+      "label": "Product PRD",
+      "path": "docs/07-product-prd.md"
+    },
+    {
+      "label": "Serverless Status And Cost Forecast",
+      "path": "docs/13-serverless-status-and-costs.md"
+    },
+    {
+      "label": "Dashboard Publishing Architecture",
+      "path": "docs/16-dashboard-publishing-architecture.md"
+    },
+    {
+      "label": "IAM And Deployment Identity",
+      "path": "docs/18-iam-and-deployment-identity.md"
+    },
+    {
+      "label": "Dual Runtime Implementation",
+      "path": "docs/20-dual-runtime-implementation.md"
+    },
+    {
+      "label": "Market Validation And Reach Plan",
+      "path": "docs/21-market-validation-and-reach-plan.md"
+    },
+    {
+      "label": "Event-Aware Dashboard Task List",
+      "path": "docs/22-event-aware-dashboard-task-list.md"
+    },
+    {
+      "label": "Mid-Term Prediction Plan",
+      "path": "docs/23-mid-term-prediction-plan.md"
+    },
+    {
+      "label": "Decision Backlog",
+      "path": "docs/decisions/backlog.md"
+    },
+    {
+      "label": "Model Card",
+      "path": "docs/model-card.md"
+    },
+    {
+      "label": "Coverage",
+      "path": "docs/coverage.md"
+    },
+    {
+      "label": "Event Intelligence",
+      "path": "docs/event-intelligence.md"
+    }
+  ],
+  "areas": [
+    {
+      "id": "public-trust",
+      "name": "Public Trust Surface",
+      "status": "completed",
+      "timeframe": "Completed foundation",
+      "summary": "Create a stakeholder-readable surface that explains what the model does, what data is trusted, and where uncertainty remains.",
+      "stakeholderOutcome": "A non-technical stakeholder can understand current capabilities, caveats, and evidence without asking engineering for a private walkthrough.",
+      "milestones": [
+        {
+          "id": "trust-model-coverage",
+          "name": "Model and coverage evidence",
+          "status": "completed",
+          "timeframe": "Completed June 2026",
+          "owner": "Product + ML",
+          "stakeholderOutcome": "Published evidence describes model scope, coverage, known limits, and why predictions should be treated as decision support.",
+          "sourceDocs": [
+            "docs/22-event-aware-dashboard-task-list.md",
+            "docs/model-card.md",
+            "docs/coverage.md"
+          ],
+          "tasks": [
+            {
+              "id": "trust-model-card",
+              "label": "Publish public model card for current congestion prediction behavior.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Covered in the public trust task list."
+            },
+            {
+              "id": "trust-coverage-doc",
+              "label": "Publish data coverage and freshness explanation.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Stakeholder-facing coverage language exists in documentation."
+            },
+            {
+              "id": "trust-dont-overclaim",
+              "label": "State that current ETAs and predictions are estimates, not contractual promises.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Existing dashboard labels distinguish estimates from model outputs."
+            }
+          ]
+        },
+        {
+          "id": "trust-market-package",
+          "name": "Pilot validation narrative",
+          "status": "completed",
+          "timeframe": "Completed June 2026",
+          "owner": "Founder + GTM",
+          "stakeholderOutcome": "Prospects can see who the product is for, what is being validated, and what success means.",
+          "sourceDocs": [
+            "docs/07-product-prd.md",
+            "docs/21-market-validation-and-reach-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "trust-prd-scope",
+              "label": "Define target users, pilot wedge, and phase boundaries.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Captured in the PRD."
+            },
+            {
+              "id": "trust-green-light",
+              "label": "Define green-light and red-light validation metrics.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Captured in the market validation plan."
+            },
+            {
+              "id": "trust-public-demo",
+              "label": "Expose public demo artifacts that can be shared without internal context.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Roadmap dashboard extends this surface."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "serverless-runtime",
+      "name": "Serverless Live Data Platform",
+      "status": "doing",
+      "timeframe": "Now through next live verification",
+      "summary": "Keep the pilot low-cost by using AWS Lambda, EventBridge, S3, Athena, CloudWatch, and CloudFront instead of always-on workers or databases.",
+      "stakeholderOutcome": "The pilot can remain public and refresh itself without expensive steady-state infrastructure.",
+      "milestones": [
+        {
+          "id": "serverless-foundation",
+          "name": "AWS serverless foundation",
+          "status": "completed",
+          "timeframe": "Completed baseline",
+          "owner": "Engineering",
+          "stakeholderOutcome": "The repo contains the deployable serverless runtime and cost-control foundation.",
+          "sourceDocs": [
+            "docs/13-serverless-status-and-costs.md",
+            "docs/18-iam-and-deployment-identity.md",
+            "docs/20-dual-runtime-implementation.md"
+          ],
+          "tasks": [
+            {
+              "id": "serverless-sam-template",
+              "label": "Define SAM template for Lambda, EventBridge, S3, Glue, Athena, CloudWatch, and SNS.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Implemented in template.yaml."
+            },
+            {
+              "id": "serverless-dashboard-export",
+              "label": "Export live dashboard data to public artifacts.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Export Lambda writes demo-data.js and demo-data.json."
+            },
+            {
+              "id": "serverless-predict-export",
+              "label": "Publish prediction artifacts adjacent to dashboard data.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Predict Lambda writes predictions.json."
+            }
+          ]
+        },
+        {
+          "id": "serverless-live-hardening",
+          "name": "Live publish and reliability hardening",
+          "status": "doing",
+          "timeframe": "1-2 weeks",
+          "owner": "Engineering + Ops",
+          "stakeholderOutcome": "Public viewers see current data and the team can detect stale or failed pipelines quickly.",
+          "sourceDocs": [
+            "docs/incidents/2026-06-11-ais-outage.md",
+            "docs/13-serverless-status-and-costs.md",
+            "docs/20-dual-runtime-implementation.md"
+          ],
+          "tasks": [
+            {
+              "id": "serverless-smoke-test",
+              "label": "Keep post-deploy smoke tests wired to deployed functions.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "GitHub Actions invokes the deployed freshness Lambda and checks AIS age after SAM deploy."
+            },
+            {
+              "id": "serverless-freshness-banner",
+              "label": "Show stale-data warnings in the dashboard when source SLAs are missed.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Freshness banner is in the dashboard shell."
+            },
+            {
+              "id": "serverless-live-verification",
+              "label": "Verify the public CloudFront dashboard reads current demo-data, predictions, and roadmap artifacts.",
+              "status": "doing",
+              "timeframe": "Next live publish",
+              "notes": "Current stakeholder check found stale or zero-valued public artifacts, so live freshness must be confirmed end to end."
+            },
+            {
+              "id": "serverless-export-cadence",
+              "label": "Confirm export cadence gives stakeholders fresh cloud data without querying Athena from every browser session.",
+              "status": "todo",
+              "timeframe": "After live freshness is stable",
+              "notes": "Keep Athena work in scheduled Lambdas and publish small static artifacts for the dashboard."
+            },
+            {
+              "id": "serverless-cost-watch",
+              "label": "Track AWS usage against the near-zero-cost pilot forecast.",
+              "status": "todo",
+              "timeframe": "Ongoing after live verification",
+              "notes": "Use CloudWatch and billing review once live traffic is stable."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-intelligence",
+      "name": "Event Intelligence Layer",
+      "status": "backlog",
+      "timeframe": "Next 2-4 weeks",
+      "summary": "Add port-relevant disruption events so the product can explain why congestion risk is moving, not only that it moved.",
+      "stakeholderOutcome": "Operators can connect risk changes to news, weather, labor, infrastructure, or policy events with traceable evidence.",
+      "milestones": [
+        {
+          "id": "event-data-foundation",
+          "name": "Event data foundation",
+          "status": "backlog",
+          "timeframe": "1-2 weeks",
+          "owner": "Data Engineering",
+          "stakeholderOutcome": "Event data arrives through low-cost serverless ingestion and can be audited back to source URLs.",
+          "sourceDocs": [
+            "docs/22-event-aware-dashboard-task-list.md",
+            "docs/23-mid-term-prediction-plan.md",
+            "docs/event-intelligence.md"
+          ],
+          "tasks": [
+            {
+              "id": "event-gdelt-ingest",
+              "label": "Ingest GDELT event signals into raw S3 partitions.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "GDELT Lambda and raw table are present in the serverless path."
+            },
+            {
+              "id": "event-second-source",
+              "label": "Select and document a second disruption source for validation.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Needed before events become strong model features."
+            },
+            {
+              "id": "event-retention",
+              "label": "Define source retention and raw audit policy.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Raw S3 retention and lifecycle are covered in the serverless design."
+            },
+            {
+              "id": "event-gdelt-freshness",
+              "label": "Add freshness and source-health checks for the GDELT feed.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "GDELT freshness is surfaced through the freshness and export paths."
+            }
+          ]
+        },
+        {
+          "id": "event-attribution-features",
+          "name": "Event attribution and model features",
+          "status": "backlog",
+          "timeframe": "2-4 weeks",
+          "owner": "Data Science",
+          "stakeholderOutcome": "The model can use event windows, severity, and category features without mixing unrelated news into a port forecast.",
+          "sourceDocs": [
+            "docs/22-event-aware-dashboard-task-list.md",
+            "docs/event-intelligence.md"
+          ],
+          "tasks": [
+            {
+              "id": "event-rule-taxonomy",
+              "label": "Define disruption category taxonomy and severity rules.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Rules, dedupe, and severity are marked complete in the task list."
+            },
+            {
+              "id": "event-geocoding-lanes",
+              "label": "Add geocoding and trade-lane attribution rules.",
+              "status": "todo",
+              "timeframe": "1-2 weeks",
+              "notes": "Still pending in the event-aware task list."
+            },
+            {
+              "id": "event-feature-windows",
+              "label": "Build 6h and 24h rolling event intensity features.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Core event feature windows are marked complete."
+            },
+            {
+              "id": "event-recency-features",
+              "label": "Add source count, tone, recency, and contract impact features.",
+              "status": "todo",
+              "timeframe": "2 weeks",
+              "notes": "Needed for better explainability and predictive lift tests."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "prediction-model",
+      "name": "Mid-Term Prediction Model",
+      "status": "doing",
+      "timeframe": "After event feature validation",
+      "summary": "Extend the current congestion prediction loop toward a 7-14 day forward-looking signal using approved live and historical sources only.",
+      "stakeholderOutcome": "A selected port can show a transparent 7-14 day risk card with the data inputs, uncertainty, and backtest evidence behind it.",
+      "milestones": [
+        {
+          "id": "prediction-current-loop",
+          "name": "Current short-horizon prediction loop",
+          "status": "doing",
+          "timeframe": "Now",
+          "owner": "ML Engineering",
+          "stakeholderOutcome": "The dashboard has a prediction artifact path ready for the current congestion model.",
+          "sourceDocs": [
+            "docs/13-serverless-status-and-costs.md",
+            "docs/blueprint/06-CHANGELOG.md"
+          ],
+          "tasks": [
+            {
+              "id": "prediction-training",
+              "label": "Train LightGBM congestion model and store model artifact in S3.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Training and prediction code exist in models/training."
+            },
+            {
+              "id": "prediction-lambda",
+              "label": "Score configured ports from Athena features and publish predictions.json.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Predict Lambda is implemented."
+            },
+            {
+              "id": "prediction-live-scoring",
+              "label": "Verify live deployed scoring across all configured ports.",
+              "status": "doing",
+              "timeframe": "Next live publish",
+              "notes": "Requires deployed stack verification."
+            }
+          ]
+        },
+        {
+          "id": "prediction-source-gates",
+          "name": "7-14 day source gates",
+          "status": "backlog",
+          "timeframe": "1 week research gate",
+          "owner": "Data + Product",
+          "stakeholderOutcome": "Only sources with acceptable cost, licensing, latency, and coverage enter the model.",
+          "sourceDocs": [
+            "docs/23-mid-term-prediction-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "prediction-comtrade-gate",
+              "label": "Decide UN Comtrade package and usage pattern for monthly/weekly trade context.",
+              "status": "todo",
+              "timeframe": "Research gate",
+              "notes": "Do not ingest paid or rate-limited data until the cost gate is approved."
+            },
+            {
+              "id": "prediction-gdelt-gate",
+              "label": "Confirm GDELT extraction plan for port-specific disruption signals.",
+              "status": "todo",
+              "timeframe": "Research gate",
+              "notes": "Use source URLs and raw audit records."
+            },
+            {
+              "id": "prediction-fred-gate",
+              "label": "Define FRED macro indicators and API key handling.",
+              "status": "todo",
+              "timeframe": "Research gate",
+              "notes": "Use FRED for macro context, not as a substitute for port operations data."
+            }
+          ]
+        },
+        {
+          "id": "prediction-card",
+          "name": "Predictive card and backtest evidence",
+          "status": "backlog",
+          "timeframe": "2-4 weeks after source gates",
+          "owner": "ML + Frontend",
+          "stakeholderOutcome": "A public card explains the 7-14 day forecast calculation, confidence, drivers, and historical performance.",
+          "sourceDocs": [
+            "docs/22-event-aware-dashboard-task-list.md",
+            "docs/23-mid-term-prediction-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "prediction-backtest",
+              "label": "Run chronological backtests for 72h, 7d, and 14d horizons.",
+              "status": "todo",
+              "timeframe": "1-2 weeks",
+              "notes": "Needed before showing a stakeholder-facing 7-14 day claim."
+            },
+            {
+              "id": "prediction-calibration",
+              "label": "Add calibration, confidence bands, and AIS-only versus event-aware lift comparison.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Pending in the event-aware task list."
+            },
+            {
+              "id": "prediction-card-ui",
+              "label": "Build selected-port predictive card with driver explanation and source freshness.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Frontend should explain how the 7-14 day prediction is calculated."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dashboard-product",
+      "name": "Dashboard Product Experience",
+      "status": "doing",
+      "timeframe": "Ongoing",
+      "summary": "Turn the pilot into a clear operational dashboard that supports live view, historical interpretation, predictions, and roadmap transparency.",
+      "stakeholderOutcome": "The public dashboard explains product progress and operational value without requiring private docs.",
+      "milestones": [
+        {
+          "id": "dashboard-live-ops",
+          "name": "Live operations dashboard",
+          "status": "completed",
+          "timeframe": "Completed baseline",
+          "owner": "Frontend",
+          "stakeholderOutcome": "Users can inspect live port status, traffic, schedules, berthing, insights, and current predictions.",
+          "sourceDocs": [
+            "docs/07-product-prd.md",
+            "docs/index.md"
+          ],
+          "tasks": [
+            {
+              "id": "dashboard-ops-pages",
+              "label": "Ship main operational pages for dashboard, traffic, schedule, berth, insights, and predictive view.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Existing routes are in dashboard-v2."
+            },
+            {
+              "id": "dashboard-live-data",
+              "label": "Read public live data artifacts with local fixture fallback.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "DataContext supports CloudFront and local demo-data fallback."
+            }
+          ]
+        },
+        {
+          "id": "dashboard-roadmap-master",
+          "name": "Master roadmap dashboard",
+          "status": "doing",
+          "timeframe": "Current sprint",
+          "owner": "Product + Frontend",
+          "stakeholderOutcome": "The roadmap becomes the shared public planning surface with expandable areas, charts, milestones, tasks, and edit governance.",
+          "sourceDocs": [
+            "docs/21-market-validation-and-reach-plan.md",
+            "docs/22-event-aware-dashboard-task-list.md",
+            "docs/23-mid-term-prediction-plan.md",
+            "docs/decisions/backlog.md"
+          ],
+          "tasks": [
+            {
+              "id": "dashboard-roadmap-json",
+              "label": "Create a structured roadmap JSON source of truth.",
+              "status": "done",
+              "timeframe": "Current sprint",
+              "notes": "This file is the first version."
+            },
+            {
+              "id": "dashboard-roadmap-ui",
+              "label": "Build public roadmap page with progress bars, status charts, expandable areas, and task modals.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Implemented in RoadmapDashboard with overview, milestone, board, and source/admin views."
+            },
+            {
+              "id": "dashboard-roadmap-live",
+              "label": "Publish roadmap.json to the public AWS dashboard bucket and verify CloudFront.",
+              "status": "doing",
+              "timeframe": "Current live verification",
+              "notes": "Local JSON and Vercel rewrite are wired; public S3 and CloudFront verification remains."
+            }
+          ]
+        },
+        {
+          "id": "dashboard-cloud-hosting",
+          "name": "Cloud hosting and deep links",
+          "status": "doing",
+          "timeframe": "Current live verification",
+          "owner": "Frontend + Ops",
+          "stakeholderOutcome": "Public users can open the dashboard, share direct page links, and see code changes after a normal main-branch deploy.",
+          "sourceDocs": [
+            "docs/16-dashboard-publishing-architecture.md",
+            "docs/20-dual-runtime-implementation.md",
+            "dashboard-v2/README.md"
+          ],
+          "tasks": [
+            {
+              "id": "dashboard-vercel-config",
+              "label": "Keep Vercel build settings and same-origin data rewrites documented for dashboard-v2.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "dashboard-v2 has vercel.json rewrites and README deployment guidance."
+            },
+            {
+              "id": "dashboard-git-auto-deploy",
+              "label": "Verify main-branch dashboard changes deploy automatically to the public frontend host.",
+              "status": "doing",
+              "timeframe": "Current live verification",
+              "notes": "README documents Vercel Git deployment; production promotion still needs live confirmation."
+            },
+            {
+              "id": "dashboard-spa-deep-links",
+              "label": "Verify direct links such as /schedule and /roadmap open correctly on the public host.",
+              "status": "doing",
+              "timeframe": "Current live verification",
+              "notes": "Vercel rewrite config exists; the live host must be checked so stakeholders can share direct links."
+            },
+            {
+              "id": "dashboard-cloudfront-fallback",
+              "label": "Add or confirm an index.html fallback if the dashboard remains on S3 and CloudFront.",
+              "status": "todo",
+              "timeframe": "If AWS static hosting remains active",
+              "notes": "Needed only for the S3 and CloudFront hosting path."
+            }
+          ]
+        },
+        {
+          "id": "dashboard-event-explainability",
+          "name": "Event and prediction explainability layer",
+          "status": "backlog",
+          "timeframe": "After event feature validation",
+          "owner": "Frontend + ML",
+          "stakeholderOutcome": "Users can click from a forecast to source-linked reasons, confidence, and freshness.",
+          "sourceDocs": [
+            "docs/22-event-aware-dashboard-task-list.md",
+            "docs/23-mid-term-prediction-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "dashboard-event-timeline",
+              "label": "Show event timeline, event markers, and reason codes.",
+              "status": "todo",
+              "timeframe": "1-2 weeks",
+              "notes": "Pending in the event-aware dashboard task list."
+            },
+            {
+              "id": "dashboard-source-links",
+              "label": "Expose source links, source counts, and confidence tags.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Needed for stakeholder trust and auditability."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "market-validation",
+      "name": "Market Validation and Reach",
+      "status": "doing",
+      "timeframe": "After public demo polish",
+      "summary": "Use the public dashboard to validate demand, willingness to engage, and the strongest buyer wedge before broad build-out.",
+      "stakeholderOutcome": "The team learns whether port ops, freight forwarders, or insurers will use and sponsor the product.",
+      "milestones": [
+        {
+          "id": "market-public-proof",
+          "name": "Public proof package",
+          "status": "doing",
+          "timeframe": "1 week",
+          "owner": "Founder + Product",
+          "stakeholderOutcome": "Outreach can link to a concise public dashboard, model card, roadmap, and validation narrative.",
+          "sourceDocs": [
+            "docs/21-market-validation-and-reach-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "market-shareable-dashboard",
+              "label": "Prepare dashboard link and short explanation for outreach.",
+              "status": "doing",
+              "timeframe": "Current sprint",
+              "notes": "Roadmap page improves this package."
+            },
+            {
+              "id": "market-weekly-digest",
+              "label": "Create weekly digest format for port congestion and event signals.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Listed as a recommended validation asset."
+            },
+            {
+              "id": "market-demo-script",
+              "label": "Draft a 10-minute stakeholder demo script.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Should highlight live data, uncertainty, and what is not yet automated."
+            }
+          ]
+        },
+        {
+          "id": "market-concierge-pilot",
+          "name": "Concierge pilot discovery",
+          "status": "backlog",
+          "timeframe": "2-4 weeks",
+          "owner": "Founder",
+          "stakeholderOutcome": "Real users test whether the dashboard changes planning decisions or only creates curiosity.",
+          "sourceDocs": [
+            "docs/21-market-validation-and-reach-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "market-target-list",
+              "label": "Build target account and advisor list for port ops, forwarders, and insurers.",
+              "status": "todo",
+              "timeframe": "1 week",
+              "notes": "Use validation plan segments."
+            },
+            {
+              "id": "market-outreach",
+              "label": "Run direct discovery outreach and record objections.",
+              "status": "todo",
+              "timeframe": "2 weeks",
+              "notes": "Track reply rate, meetings, and pull-forward requests."
+            },
+            {
+              "id": "market-pilot-offer",
+              "label": "Offer concierge pilot for a selected port or trade lane.",
+              "status": "todo",
+              "timeframe": "2-4 weeks",
+              "notes": "Manual work is acceptable during validation if it tests demand."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "governance-cost",
+      "name": "Governance, Cost, and Admin Controls",
+      "status": "doing",
+      "timeframe": "Ongoing",
+      "summary": "Protect the public roadmap and model surfaces with clear ownership, low-cost infrastructure, auditability, and controlled edits.",
+      "stakeholderOutcome": "Public stakeholders see progress while only authorized maintainers can change planning status.",
+      "milestones": [
+        {
+          "id": "governance-cost-baseline",
+          "name": "Low-cost runtime governance",
+          "status": "completed",
+          "timeframe": "Completed baseline",
+          "owner": "Engineering + Finance",
+          "stakeholderOutcome": "The project avoids hidden always-on infrastructure cost while remaining observable.",
+          "sourceDocs": [
+            "docs/13-serverless-status-and-costs.md",
+            "docs/20-dual-runtime-implementation.md"
+          ],
+          "tasks": [
+            {
+              "id": "governance-runtime-decision",
+              "label": "Document serverless as the live pilot runtime and Prefect as alternate/legacy path.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Captured in the dual-runtime document."
+            },
+            {
+              "id": "governance-cost-forecast",
+              "label": "Document expected AWS cost shape and remaining live work.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "Captured in the serverless status and cost forecast."
+            }
+          ]
+        },
+        {
+          "id": "governance-hosting-cost-choice",
+          "name": "Frontend hosting cost choice",
+          "status": "doing",
+          "timeframe": "Current live verification",
+          "owner": "Engineering + Finance",
+          "stakeholderOutcome": "The team can choose Vercel or AWS static hosting without increasing data costs or weakening the live data contract.",
+          "sourceDocs": [
+            "docs/16-dashboard-publishing-architecture.md",
+            "docs/20-dual-runtime-implementation.md",
+            "dashboard-v2/README.md"
+          ],
+          "tasks": [
+            {
+              "id": "governance-static-artifact-contract",
+              "label": "Keep the production dashboard on small static data artifacts instead of browser-triggered Athena queries.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "The documented production contract is Lambda to S3 and CloudFront data artifacts."
+            },
+            {
+              "id": "governance-vercel-hosting-decision",
+              "label": "Confirm whether Vercel remains the frontend host while AWS remains the data plane.",
+              "status": "doing",
+              "timeframe": "Current live verification",
+              "notes": "The dashboard README documents Vercel deployment; the final public hosting choice is under review."
+            },
+            {
+              "id": "governance-cloudfront-hosting-fallback",
+              "label": "Keep S3 and CloudFront as the fallback frontend hosting path if Vercel is not used.",
+              "status": "todo",
+              "timeframe": "Backlog fallback",
+              "notes": "This preserves the AWS-only option without making it the default choice."
+            }
+          ]
+        },
+        {
+          "id": "governance-roadmap-admin",
+          "name": "Roadmap edit governance",
+          "status": "backlog",
+          "timeframe": "Current sprint plus future admin phase",
+          "owner": "Product + Engineering",
+          "stakeholderOutcome": "The roadmap is publicly visible, but status changes are controlled and traceable.",
+          "sourceDocs": [
+            "docs/decisions/backlog.md",
+            "docs/23-mid-term-prediction-plan.md"
+          ],
+          "tasks": [
+            {
+              "id": "governance-code-edits",
+              "label": "Allow roadmap updates through code-reviewed JSON edits.",
+              "status": "done",
+              "timeframe": "Current sprint",
+              "notes": "This is the initial master-source workflow."
+            },
+            {
+              "id": "governance-public-readonly",
+              "label": "Render roadmap as a public read-only dashboard.",
+              "status": "done",
+              "timeframe": "Done",
+              "notes": "The public roadmap route is read-only; no public write controls are exposed."
+            },
+            {
+              "id": "governance-admin-writer",
+              "label": "Build authorized admin GUI for task and milestone edits.",
+              "status": "todo",
+              "timeframe": "Future admin phase",
+              "notes": "Use auth, Lambda validation, S3 object writes, and CloudTrail audit."
+            },
+            {
+              "id": "governance-mkdocs-watch",
+              "label": "Monitor MkDocs Material compatibility with MkDocs 2.0.",
+              "status": "todo",
+              "timeframe": "Backlog watch item",
+              "notes": "Only open item currently listed in the decisions backlog."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
