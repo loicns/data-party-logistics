@@ -1,0 +1,231 @@
+{
+  "type": "FeatureCollection",
+  "name": "noaa_cp7_uslax_anchorages",
+  "metadata": {
+    "title": "NOAA Coast Pilot 7 Los Angeles/Long Beach Anchorage Geofences",
+    "source": "NOAA U.S. Coast Pilot 7, 07 JUN 2026, Section 110.214, Los Angeles and Long Beach harbors, California",
+    "source_file": "/Users/loicns/Downloads/CPB7_WEB.pdf",
+    "datum": "NAD83",
+    "coordinate_order": "GeoJSON longitude, latitude",
+    "trust_note": "Only anchorages with explicit closed coordinate boundaries are included as usable polygons. Shoreline-dependent anchorages N, P, and Q are intentionally excluded until a shoreline layer is added.",
+    "excluded_areas": [
+      {
+        "zone_id": "uslax_anchorage_n",
+        "reason": "Defined as shoreward of a line near Cabrillo Beach; requires shoreline geometry to close the polygon safely."
+      },
+      {
+        "zone_id": "uslax_anchorage_p",
+        "reason": "Boundary follows shoreline and jetty segments; requires shoreline geometry to close the polygon safely."
+      },
+      {
+        "zone_id": "uslax_anchorage_q",
+        "reason": "Boundary includes shoreline, jetty, and an arc; requires extra geometry handling before use."
+      }
+    ]
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_anchorage_b",
+        "zone_name": "Commercial Anchorage B",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(2)",
+        "notes": "Long Beach Harbor commercial anchorage. Boundary converted from NAD83 DMS coordinates."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.21666667, 33.74361111],
+          [-118.21005556, 33.73666667],
+          [-118.19358333, 33.72727778],
+          [-118.19644444, 33.72391667],
+          [-118.20630556, 33.72391667],
+          [-118.23138889, 33.71636111],
+          [-118.23711111, 33.72944444],
+          [-118.23055556, 33.73180556],
+          [-118.23083333, 33.73966667],
+          [-118.21666667, 33.74361111]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_anchorage_c",
+        "zone_name": "Commercial Anchorage C",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(3)",
+        "notes": "Long Beach Harbor commercial anchorage. Boundary converted from NAD83 DMS coordinates."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.14061111, 33.73888889],
+          [-118.15905556, 33.73986111],
+          [-118.15922222, 33.748],
+          [-118.14061111, 33.74033333],
+          [-118.14061111, 33.73888889]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_anchorage_d",
+        "zone_name": "Commercial Anchorage D",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(4)",
+        "notes": "Long Beach Harbor commercial and naval anchorage. Boundary converted from NAD83 DMS coordinates."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.13683333, 33.72422222],
+          [-118.17958333, 33.72422222],
+          [-118.17958333, 33.73083333],
+          [-118.17422222, 33.73847222],
+          [-118.13683333, 33.73847222],
+          [-118.13683333, 33.72422222]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_anchorage_e",
+        "zone_name": "Commercial Anchorage E",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(5)",
+        "notes": "Long Beach Harbor commercial anchorage. Boundary converted from NAD83 DMS coordinates."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.16347222, 33.74361111],
+          [-118.16577778, 33.73847222],
+          [-118.17422222, 33.73847222],
+          [-118.17805556, 33.741],
+          [-118.18261111, 33.74138889],
+          [-118.18597222, 33.75177778],
+          [-118.17947222, 33.75422222],
+          [-118.17555556, 33.75305556],
+          [-118.17555556, 33.74777778],
+          [-118.16347222, 33.74361111]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_anchorage_f",
+        "zone_name": "Commercial Anchorage F",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(6)",
+        "notes": "Outside Long Beach Breakwater. Boundary converted from NAD83 DMS coordinates."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.13444444, 33.71808333],
+          [-118.17569444, 33.71805556],
+          [-118.16522222, 33.70369444],
+          [-118.15894444, 33.68091667],
+          [-118.12883333, 33.64338889],
+          [-118.11427778, 33.679],
+          [-118.13444444, 33.71808333]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_anchorage_g",
+        "zone_name": "Commercial Anchorage G",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(7)",
+        "notes": "Outside the Middle Breakwater. Boundary converted from NAD83 DMS coordinates."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.18830556, 33.71816667],
+          [-118.20516667, 33.71816667],
+          [-118.23866667, 33.70716667],
+          [-118.217, 33.68066667],
+          [-118.20527778, 33.68413889],
+          [-118.19333333, 33.703],
+          [-118.18830556, 33.71816667]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "port_code": "USLAX",
+        "zone_id": "uslax_explosives_anchorage",
+        "zone_name": "Explosives Anchorage",
+        "zone_type": "anchorage",
+        "confidence": "high",
+        "source": "NOAA U.S. Coast Pilot 7, Section 110.214(b)(11)",
+        "notes": "Circular area with radius 1,909 yards centered at 33°43'37.0\"N, 118°09'05.3\"W. Stored as a 36-point polygon approximation.",
+        "center": [-118.15147222, 33.72694444],
+        "radius_yards": 1909
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-118.15147222, 33.74264288],
+          [-118.14819397, 33.74240434],
+          [-118.14501538, 33.74169598],
+          [-118.14203308, 33.74053933],
+          [-118.13933772, 33.73896955],
+          [-118.13701121, 33.73703436],
+          [-118.13512425, 33.73479258],
+          [-118.13373415, 33.73231236],
+          [-118.1328831, 33.72966905],
+          [-118.13259694, 33.726943],
+          [-118.13288429, 33.72421704],
+          [-118.13373637, 33.72157399],
+          [-118.13512724, 33.71909414],
+          [-118.13701461, 33.71685283],
+          [-118.13934112, 33.71491814],
+          [-118.14203607, 33.71334883],
+          [-118.1450176, 33.71219256],
+          [-118.14819515, 33.71148445],
+          [-118.15147222, 33.711246],
+          [-118.15474929, 33.71148445],
+          [-118.15792684, 33.71219256],
+          [-118.16090837, 33.71334883],
+          [-118.16360332, 33.71491814],
+          [-118.16592983, 33.71685283],
+          [-118.1678172, 33.71909414],
+          [-118.16920807, 33.72157399],
+          [-118.17006015, 33.72421704],
+          [-118.1703475, 33.726943],
+          [-118.17006134, 33.72966905],
+          [-118.16921029, 33.73231236],
+          [-118.16782019, 33.73479258],
+          [-118.16593323, 33.73703436],
+          [-118.16360672, 33.73896955],
+          [-118.16091136, 33.74053933],
+          [-118.15792906, 33.74169598],
+          [-118.15475047, 33.74240434],
+          [-118.15147222, 33.74264288]
+        ]]
+      }
+    }
+  ]
+}
