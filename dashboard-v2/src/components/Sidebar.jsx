@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useData } from '../context/DataContext';
+import BrandMark from './BrandMark';
 
 function NavItem({ to, icon, label, end, onNavigate }) {
   return (
@@ -26,9 +27,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   return (
     <nav className={`bg-surface-container dark:bg-surface-container flex flex-col h-screen fixed left-0 top-0 z-50 docked full-height w-64 border-r border-outline-variant flat no shadows transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="p-container-padding flex items-center gap-3 border-b border-outline-variant/30 h-16 shrink-0">
-        <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center overflow-hidden shrink-0">
-          <span className="material-symbols-outlined text-on-primary-container">directions_boat</span>
-        </div>
+        <BrandMark />
         <div className="flex flex-col overflow-hidden">
           <span className="font-title-sm text-title-sm truncate text-on-surface font-bold">{port?.name || 'Port Ops'}</span>
           <span className="font-body-sm text-body-sm text-on-surface-variant truncate">Vessel Traffic Control</span>

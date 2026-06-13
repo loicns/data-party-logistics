@@ -10,6 +10,7 @@ const ArrivalDepartureSchedule = lazy(() => import("./pages/ArrivalDepartureSche
 const BerthSchedulingView = lazy(() => import("./pages/BerthSchedulingView"));
 const CongestionInsights = lazy(() => import("./pages/CongestionInsights"));
 const PredictiveAnalysis = lazy(() => import("./pages/PredictiveAnalysis"));
+const PhaseOneLanding = lazy(() => import("./pages/PhaseOneLanding"));
 
 function PageFallback() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/phase-1" element={lazyRoute(PhaseOneLanding)} />
         <Route path="/" element={<Layout />}>
           <Route index element={lazyRoute(OperationsDashboard)} />
           <Route path="map" element={lazyRoute(VesselTrafficMap)} />
