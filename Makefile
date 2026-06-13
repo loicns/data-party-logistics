@@ -31,6 +31,9 @@ build-WeatherIngestionFunction:
 build-NoaaIngestionFunction:
 	$(call _build)
 
+build-GdeltEventsFunction:
+	$(call _build)
+
 build-DashboardExportFunction:
 	$(call _build)
 

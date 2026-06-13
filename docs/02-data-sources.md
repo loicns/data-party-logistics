@@ -11,7 +11,7 @@ Formal audit of every data source used in the Data Party Logistics platform. Eac
 | Open-Meteo | Free (CC BY 4.0) | None | 10k req/day | <500ms | Hourly | Very stable | ~3 months | Tested |
 | NOAA CDO | Free (US gov) | API token | 1000 req/day | <1s | Daily | Stable | Decades | Tested |
 | FRED | Free (public) | API key | 120 req/min | <200ms | Monthly | Very stable | 1997-present | Tested |
-| GDELT 2.0 | Free (public) | None | Unlimited | <2s | Every 15 min | Stable | 1979-present | Tested |
+| GDELT 2.0 DOC | Free (public) | None | Service-managed | <2s typical | Every 15 min | Stable enough for pilot | 1979-present | Ingested for event pressure |
 | WPI (NGA) | Public domain (US gov) | None — bulk download | N/A | N/A | Annual | Stable | 2017 edition (3,669 ports) | Seeded |
 
 ## Risk assessment
@@ -21,14 +21,15 @@ Formal audit of every data source used in the Data Party Logistics platform. Eac
 | AISStream changes WebSocket schema | Low | High | Pin to v0, validate with Pydantic, alert on schema mismatch |
 | Comtrade rate limit hit | Medium | Low | Batch requests, cache responses, implement backoff |
 | Open-Meteo downtime | Low | Medium | Fall back to NOAA for weather data |
-| GDELT feed URL changes | Low | Medium | The lastupdate.txt pattern has been stable for years; monitor with freshness check |
+| GDELT DOC query/API shape changes | Low | Medium | Client validates article-list shape and freshness check monitors raw event landings |
 | WPI edition is outdated (2017) | Medium | Low | Port locations are stable; only facilities data degrades. Re-download from msi.nga.mil annually |
 
 ## Notes
 
 - All sources were tested on 2026-04-14 with live API calls or direct downloads.
 - API keys are stored in `.env` (Zone 2 — local only, never committed).
-- Detailed per-source documentation is in the ingestion client code (Week 2).
+- Detailed per-source documentation is in the ingestion client code and
+  [Event Intelligence Layer](event-intelligence.md).
 
 ## WPI detail
 

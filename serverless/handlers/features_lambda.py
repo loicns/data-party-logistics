@@ -32,6 +32,8 @@ QUERIES_DIR = Path(__file__).resolve().parents[2] / "athena" / "queries"
 # congestion_target reads feature_vessel_inbound_hourly; port_status reads it too.
 TABLES: list[tuple[str, str]] = [
     ("feature_vessel_inbound_hourly", "feature_vessel_inbound_hourly.sql"),
+    ("event_port_attribution_hourly", "event_port_attribution_hourly.sql"),
+    ("feature_event_signals_hourly", "feature_event_signals_hourly.sql"),
     ("feature_port_status_hourly", "feature_port_status_hourly.sql"),
     ("congestion_target", "congestion_target.sql"),
 ]

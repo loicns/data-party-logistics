@@ -49,6 +49,21 @@ These are the JOIN patterns that produce ML training features:
   `fct_economic_indicator WHERE series_id = 'GSCPI'`
   → gscpi_latest (most recent value), gscpi_3mo_change (trend)
 
+## Current serverless pilot tables
+
+The deployed low-cost pilot uses Athena CTAS tables rather than a full dbt/star
+warehouse. These are the current event-aware tables:
+
+| Table | Grain | Purpose |
+|---|---|---|
+| `raw_gdelt_events` | One GDELT article-to-port attribution row | Raw event source with audit metadata |
+| `event_port_attribution_hourly` | One attributed event per port | Reviewable attribution decisions |
+| `feature_event_signals_hourly` | One event-bearing port-hour | Rolling event-pressure features |
+| `feature_port_status_hourly` | One port-hour | AIS/weather features plus zero-filled event columns |
+
+The deployed model still consumes only the feature list in `models/features.py`.
+Event columns are staged for analysis and future retraining.
+
 ## Design decisions
 
 | Decision | Choice | Rationale |

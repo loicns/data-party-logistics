@@ -9,6 +9,7 @@ The live system writes raw data under date-partitioned prefixes:
 - `raw/source=ais/date=YYYY-MM-DD/`
 - `raw/source=weather/date=YYYY-MM-DD/`
 - `raw/source=noaa_tides/date=YYYY-MM-DD/`
+- `raw/source=gdelt_events/date=YYYY-MM-DD/`
 
 Why this matters:
 
@@ -37,6 +38,9 @@ Why this matters:
   - includes `ship_name`, not `vessel_name`
 - `raw_weather_observations`
 - `raw_noaa_tides`
+- `raw_gdelt_events`
+  - one row per GDELT article-to-port attribution, with unattributed rows kept
+    for audit
 
 This column naming matters because the export Lambda queries Athena directly and must match the Glue schema exactly.
 
@@ -63,6 +67,20 @@ Writes:
 Writes:
 
 - raw NOAA NDJSON objects
+
+### GDELT events
+
+Writes:
+
+- raw GDELT event NDJSON objects
+- article metadata
+- conservative port attribution fields
+- heuristic category and severity fields
+
+Expected output signal:
+
+- non-zero `GdeltRecordsWritten`
+- non-null `GdeltFreshnessMinutes`
 
 ### Export
 
@@ -95,7 +113,7 @@ This is a static export contract, not a live API contract.
 
 - date partitions use `YYYY-MM-DD`
 - export artifact path is stable
-- the pilot remains scoped to three ports
+- the pilot remains scoped to the 10 ports in `serverless/ports.py`
 - Athena output stays under the same bucket unless the workgroup is deliberately changed
 
 ## Common Failure Modes
@@ -104,3 +122,5 @@ This is a static export contract, not a live API contract.
 - Athena reads old data because the expected prefix did not refresh
 - export code expects a column alias that the raw table does not expose
 - manual dashboard publication uses stale `demo-data.js`
+- event attribution over-reaches when a country-level story is maritime but not
+  actually port-specific

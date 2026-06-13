@@ -210,6 +210,53 @@ Resources:
             - { Name: tide_level_m, Type: double }
             - { Name: tide_type, Type: string }
 
+  RawGdeltEventsTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: raw_gdelt_events
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: json
+          EXTERNAL: "TRUE"
+          projection.enabled: "true"
+          projection.date.type: date
+          projection.date.range: "2024-01-01,NOW"
+          projection.date.format: "yyyy-MM-dd"
+          projection.date.interval: "1"
+          projection.date.interval.unit: DAYS
+          storage.location.template:
+            Fn::Sub: "s3://${DataBucket}/raw/source=gdelt_events/date=${!date}/"
+        PartitionKeys:
+          - Name: date
+            Type: string
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucket}/raw/source=gdelt_events/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: event_id, Type: string }
+            - { Name: source, Type: string }
+            - { Name: query_name, Type: string }
+            - { Name: query, Type: string }
+            - { Name: fetched_at, Type: string }
+            - { Name: seen_at, Type: string }
+            - { Name: title, Type: string }
+            - { Name: url, Type: string }
+            - { Name: domain, Type: string }
+            - { Name: language, Type: string }
+            - { Name: source_country, Type: string }
+            - { Name: port_code, Type: string }
+            - { Name: port_name, Type: string }
+            - { Name: attribution_reason, Type: string }
+            - { Name: event_category, Type: string }
+            - { Name: severity_score, Type: double }
+            - { Name: matched_terms, Type: "array<string>" }
+
   AthenaWorkgroup:
     Type: AWS::Athena::WorkGroup
     Properties:
@@ -321,6 +368,40 @@ Resources:
           Type: ScheduleV2
           Properties:
             ScheduleExpression: cron(20 1 * * ? *)
+            FlexibleTimeWindow:
+              Mode: "OFF"
+
+  GdeltEventsFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-gdelt-events"
+      Handler: serverless.handlers.gdelt_lambda.lambda_handler
+      Timeout: 180
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - athena:StartQueryExecution
+                - athena:GetQueryExecution
+                - athena:GetQueryResults
+                - glue:GetDatabase
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetTables
+                - glue:GetPartitions
+                - cloudwatch:PutMetricData
+              Resource: "*"
+      Events:
+        HourlyRun:
+          Type: ScheduleV2
+          Properties:
+            # :12 - after weather (:10), before features (:15).
+            ScheduleExpression: cron(12 * * * ? *)
             FlexibleTimeWindow:
               Mode: "OFF"
 
@@ -530,6 +611,7 @@ Resources:
                   [ "AWS/Lambda", "Errors", "FunctionName", "${AisSnapshotFunction}" ],
                   [ ".", ".", ".", "${WeatherIngestionFunction}" ],
                   [ ".", ".", ".", "${NoaaIngestionFunction}" ],
+                  [ ".", ".", ".", "${GdeltEventsFunction}" ],
                   [ ".", ".", ".", "${DashboardExportFunction}" ],
                   [ ".", ".", ".", "${FreshnessCheckFunction}" ]
                 ]
@@ -547,6 +629,7 @@ Resources:
                   [ "DPL/Pilot", "AisFreshnessMinutes" ],
                   [ ".", "WeatherFreshnessMinutes" ],
                   [ ".", "NoaaFreshnessMinutes" ],
+                  [ ".", "GdeltFreshnessMinutes" ],
                   [ ".", "ExportFreshnessMinutes" ]
                 ]
               }
@@ -563,6 +646,7 @@ Resources:
                   [ "DPL/Pilot", "AisFilesWritten" ],
                   [ ".", "WeatherRecordsWritten" ],
                   [ ".", "NoaaFilesWritten" ],
+                  [ ".", "GdeltRecordsWritten" ],
                   [ ".", "ExportArtifactWritten" ]
                 ]
               }
