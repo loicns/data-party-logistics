@@ -46,7 +46,7 @@ function compareRows(left, right, sortBy) {
 
 export default function ArrivalDepartureSchedule() {
   const { port } = useData();
-  const vessels = port?.vessels || [];
+  const vessels = useMemo(() => port?.vessels ?? [], [port?.vessels]);
   const [search, setSearch] = useState('');
   const [zoneFilter, setZoneFilter] = useState('all');
   const [movementFilter, setMovementFilter] = useState('all');

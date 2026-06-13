@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useData } from '../context/DataContext';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { installTransparentMissingImageHandler } from '../utils/mapLibreImages';
 
 export default function VesselTrafficMap() {
   const { port } = useData();
@@ -22,6 +23,7 @@ export default function VesselTrafficMap() {
       zoom: 11,
       attributionControl: false
     });
+    installTransparentMissingImageHandler(map.current);
 
     map.current.on('load', () => {
       setMapLoaded(true);

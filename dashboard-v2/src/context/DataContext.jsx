@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { PORT_COVERAGE, buildBerthAllocations } from '../data/portCoverage';
 
 const DataContext = createContext(null);
 const ZONE_ORDER = { berth: 0, anchor: 1, approaching: 2, transit: 3 };
@@ -68,6 +69,8 @@ function normalizePort(port) {
     ...port,
     vessels,
     vesselsTotal: toNumber(port.vesselsTotal, vessels.length),
+    hasSnapshot: port.hasSnapshot ?? true,
+    berthAllocations: buildBerthAllocations(port.code, port.berthAllocations),
     schedule,
     metrics: {
       ...m,
@@ -81,6 +84,50 @@ function normalizePort(port) {
   };
 }
 
+function buildCoveragePort(code, meta) {
+  return normalizePort({
+    ...meta,
+    code,
+    metrics: {
+      congestionPct: 0,
+      waiting: 0,
+      berthed: 0,
+      avgSpeed: 0,
+      maxWave: 0,
+      tracked: 0,
+    },
+    forecast: [],
+    trend: [],
+    vessels: [],
+    vesselsTotal: 0,
+    berthAllocations: buildBerthAllocations(code),
+    hasSnapshot: false,
+  });
+}
+
+function normalizePorts(rawPorts = {}) {
+  const coveragePorts = Object.fromEntries(
+    Object.entries(PORT_COVERAGE).map(([code, meta]) => [code, buildCoveragePort(code, meta)])
+  );
+
+  const exportedPorts = Object.fromEntries(
+    Object.entries(rawPorts).map(([code, port]) => [
+      code,
+      normalizePort({
+        ...(PORT_COVERAGE[code] ?? {}),
+        ...port,
+        code: port.code ?? code,
+        hasSnapshot: true,
+      }),
+    ])
+  );
+
+  return {
+    ...coveragePorts,
+    ...exportedPorts,
+  };
+}
+
 // Parse a payload that is either plain JSON or a `window.DEMO_DATA = {...};`
 // script. The export writes both a .json (for this fetch path) and a .js (the
 // offline fallback); tolerating the JS wrapper here means a URL accidentally
@@ -89,11 +136,13 @@ function normalizePort(port) {
 function parseDataPayload(text) {
   try {
     return JSON.parse(text);
-  } catch {
+  } catch (jsonError) {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
     if (start === -1 || end === -1 || end <= start) {
-      throw new Error('Response is neither JSON nor a window.DEMO_DATA script');
+      throw new Error('Response is neither JSON nor a window.DEMO_DATA script', {
+        cause: jsonError,
+      });
     }
     return JSON.parse(text.slice(start, end + 1));
   }
@@ -134,8 +183,10 @@ function resolveDataUrl() {
     if (target.origin !== window.location.origin) {
       return target.pathname.endsWith('.json') ? '/live-data.json' : '/live-data.js';
     }
-  } catch {
-    // Not an absolute URL — already same-origin, use as-is.
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn(`Ignoring invalid VITE_DATA_URL: ${formatError(error)}`);
+    }
   }
   return configured;
 }
@@ -163,9 +214,7 @@ async function loadLivePorts() {
       const portEntries = await Promise.all(
         Object.keys(ports).map(async (code) => [code, await fetchJson(`${base}/ports/${code}`)])
       );
-      const normalizedPorts = Object.fromEntries(
-        portEntries.map(([code, port]) => [code, normalizePort(port)])
-      );
+      const normalizedPorts = normalizePorts(Object.fromEntries(portEntries));
       const totalSurfaced = Object.values(normalizedPorts).reduce(
         (sum, port) => sum + (port.vessels?.length ?? 0),
         0
@@ -194,6 +243,11 @@ async function loadLivePorts() {
   throw lastError ?? new Error('Live API unavailable');
 }
 
+function formatError(error) {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 export function DataProvider({ children }) {
   const [data, setData] = useState(null);
   const [currentPortCode, setCurrentPortCode] = useState(null);
@@ -210,28 +264,24 @@ export function DataProvider({ children }) {
         setCurrentPortCode((prev) => prev ?? Object.keys(liveData.ports)[0] ?? null);
         setError(null);
         return;
-      } catch {
-        // Fall back to the demo artifact when the local API is not running.
-      }
-
-      const raw = window.DEMO_DATA;
-      if (!raw || !raw.ports) {
-        if (!cancelled) {
-          setError('No live API or demo-data.js found. Start the API or regenerate dashboard/demo-data.js and copy it to dashboard-v2/public/demo-data.js.');
+      } catch (liveError) {
+        const raw = window.DEMO_DATA;
+        if (!raw || !raw.ports) {
+          if (!cancelled) {
+            setError(`No live API or demo-data.js found. Start the API or restore dashboard-v2/public/demo-data.js. Last live-data error: ${formatError(liveError)}`);
+          }
+          return;
         }
-        return;
-      }
 
-      if (cancelled) return;
-      const normalized = {
-        ...raw,
-        ports: Object.fromEntries(
-          Object.entries(raw.ports).map(([code, port]) => [code, normalizePort(port)])
-        ),
-      };
-      setData(normalized);
-      setCurrentPortCode((prev) => prev ?? Object.keys(normalized.ports)[0] ?? null);
-      setError(null);
+        if (cancelled) return;
+        const normalized = {
+          ...raw,
+          ports: normalizePorts(raw.ports),
+        };
+        setData(normalized);
+        setCurrentPortCode((prev) => prev ?? Object.keys(normalized.ports)[0] ?? null);
+        setError(null);
+      }
     }
 
     loadData();

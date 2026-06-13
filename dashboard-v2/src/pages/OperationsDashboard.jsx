@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { installTransparentMissingImageHandler } from '../utils/mapLibreImages';
 
 // How many vessels to preview on the dashboard before linking out to the full
 // Traffic map. Keeps the card scannable instead of a long internal scroll.
@@ -23,6 +24,7 @@ export default function OperationsDashboard() {
       zoom: 10,
       attributionControl: false
     });
+    installTransparentMissingImageHandler(map.current);
 
     map.current.on('load', () => {
       // Add markers for vessels

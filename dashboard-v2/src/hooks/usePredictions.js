@@ -19,11 +19,16 @@ export function usePredictions() {
 
   useEffect(() => {
     fetch(PREDICTIONS_URL)
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Prediction fetch failed: ${r.status}`))))
       // predict_lambda publishes { generatedAt, predictions: {...} };
       // the older committed file was a flat { PORT: {...} } — support both.
       .then((data) => setPredictions(data?.predictions ?? data ?? {}))
-      .catch(() => setPredictions({})); // graceful: never white-screen
+      .catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn(error instanceof Error ? error.message : String(error));
+        }
+        setPredictions({});
+      });
   }, []);
 
   return predictions;

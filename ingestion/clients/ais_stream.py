@@ -328,7 +328,8 @@ async def consume(
                 break
 
     except asyncio.CancelledError:
-        pass
+        logger.info("consume_cancelled")
+        raise
     finally:
         flush_task.cancel()
         watchdog_task.cancel()
