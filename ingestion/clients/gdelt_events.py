@@ -404,7 +404,7 @@ class GdeltEventsClient:
     ) -> list[dict[str, Any]]:
         """Fetch raw article dictionaries from GDELT DOC."""
 
-        params = {
+        params: dict[str, str | int] = {
             "query": query,
             "mode": "ArtList",
             "format": "json",
