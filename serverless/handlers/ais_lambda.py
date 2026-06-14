@@ -13,7 +13,7 @@ from serverless.metrics import put_metric
 
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     duration_seconds = int(
-        event.get("duration_seconds") or os.getenv("AIS_DURATION_SECONDS", "300")
+        str(event.get("duration_seconds") or os.getenv("AIS_DURATION_SECONDS", "300"))
     )
     shutdown_event = asyncio.Event()
     result = asyncio.run(
@@ -27,6 +27,14 @@ def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
     put_metric("AisRunSuccess", 1)
     put_metric("AisFilesWritten", float(summary.get("files_written", 0)))
     put_metric("AisRecordsWritten", float(summary.get("records_written", 0)))
+    put_metric(
+        "AisVoyageFilesWritten",
+        float(summary.get("voyage_files_written", 0)),
+    )
+    put_metric(
+        "AisVoyageRecordsWritten",
+        float(summary.get("voyage_records_written", 0)),
+    )
 
     return {
         "status": "ok",

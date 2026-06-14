@@ -16,8 +16,10 @@ def lambda_handler(_event: dict[str, Any], _context: Any) -> dict[str, Any]:
 
     checks = {
         "AisFreshnessMinutes": "raw/source=ais/",
+        "AisVoyageFreshnessMinutes": "raw/source=ais_voyage/",
         "WeatherFreshnessMinutes": "raw/source=weather/",
         "NoaaFreshnessMinutes": "raw/source=noaa_tides/",
+        "GdeltFreshnessMinutes": "raw/source=gdelt_events/",
         "ExportFreshnessMinutes": os.getenv(
             "DASHBOARD_EXPORT_PREFIX",
             "exports/dashboard/",

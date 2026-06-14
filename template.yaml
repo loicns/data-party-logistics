@@ -138,6 +138,51 @@ Resources:
             - { Name: msg_type, Type: string }
             - { Name: received_at, Type: string }
 
+  RawAisVoyageTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabase
+      TableInput:
+        Name: raw_ais_voyage
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: json
+          EXTERNAL: "TRUE"
+          projection.enabled: "true"
+          projection.date.type: date
+          projection.date.range: "2024-01-01,NOW"
+          projection.date.format: "yyyy-MM-dd"
+          projection.date.interval: "1"
+          projection.date.interval.unit: DAYS
+          storage.location.template:
+            Fn::Sub: "s3://${DataBucket}/raw/source=ais_voyage/date=${!date}/"
+        PartitionKeys:
+          - Name: date
+            Type: string
+        StorageDescriptor:
+          Location: !Sub "s3://${DataBucket}/raw/source=ais_voyage/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: mmsi, Type: bigint }
+            - { Name: ship_name, Type: string }
+            - { Name: call_sign, Type: string }
+            - { Name: imo_number, Type: string }
+            - { Name: ship_type, Type: string }
+            - { Name: destination, Type: string }
+            - { Name: eta_raw, Type: string }
+            - { Name: eta_timestamp_utc, Type: string }
+            - { Name: draught_m, Type: double }
+            - { Name: dimension_to_bow_m, Type: int }
+            - { Name: dimension_to_stern_m, Type: int }
+            - { Name: dimension_to_port_m, Type: int }
+            - { Name: dimension_to_starboard_m, Type: int }
+            - { Name: msg_type, Type: string }
+            - { Name: received_at, Type: string }
+
   RawWeatherTable:
     Type: AWS::Glue::Table
     Properties:

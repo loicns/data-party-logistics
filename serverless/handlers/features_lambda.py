@@ -36,6 +36,8 @@ TABLES: list[tuple[str, str]] = [
     ("feature_event_signals_hourly", "feature_event_signals_hourly.sql"),
     ("feature_port_status_hourly", "feature_port_status_hourly.sql"),
     ("congestion_target", "congestion_target.sql"),
+    ("feature_vessel_state_hourly", "feature_vessel_state_hourly.sql"),
+    ("feature_port_status_hourly_v2", "feature_port_status_hourly_v2.sql"),
 ]
 
 _EXTERNAL_LOCATION = re.compile(r"external_location\s*=\s*'([^']+)'", re.IGNORECASE)

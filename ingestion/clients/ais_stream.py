@@ -51,11 +51,135 @@ FLUSH_INTERVAL_SEC = (
     60  # Write to S3 every 60 seconds — balances latency vs S3 write cost
 )
 SOURCE_NAME = "ais"  # S3 partition key: raw/source=ais/date=.../...
+VOYAGE_SOURCE_NAME = "ais_voyage"
+
+# AISStream message labels are string names, not raw AIS numeric types. Keep the
+# accepted labels broad so v2 can ingest Class B/static payloads when present
+# without breaking the current PositionReport path.
+POSITION_MESSAGE_TYPES = {
+    "PositionReport",
+    "StandardClassBPositionReport",
+    "ExtendedClassBPositionReport",
+}
+VOYAGE_MESSAGE_TYPES = {
+    "ShipStaticData",
+    "StaticDataReport",
+    "ShipStaticAndVoyageData",
+    "ShipStaticAndVoyageRelatedData",
+    "VoyageData",
+}
+SUBSCRIBED_MESSAGE_TYPES = sorted(POSITION_MESSAGE_TYPES | VOYAGE_MESSAGE_TYPES)
 
 _LOCODE_PATH = (
     Path(__file__).parent.parent.parent / "warehouse" / "seeds" / "un_locode.csv"
 )
 BOUNDING_BOXES = load_port_bboxes(_LOCODE_PATH)
+
+
+# ---------------------------------------------------------------------------
+# Normalization helpers
+# ---------------------------------------------------------------------------
+
+
+def _coalesce_value(data: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = data.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _coalesce_str(
+    data: dict[str, Any],
+    *keys: str,
+    default: str | None = "",
+) -> str | None:
+    value = _coalesce_value(data, *keys)
+    return str(value).strip() if value is not None and value != "" else default
+
+
+def _coalesce_float(
+    data: dict[str, Any],
+    *keys: str,
+    default: float | None = 0.0,
+) -> float | None:
+    value = _coalesce_value(data, *keys)
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coalesce_int(
+    data: dict[str, Any],
+    *keys: str,
+    default: int | None = 0,
+) -> int | None:
+    value = _coalesce_value(data, *keys)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_eta_timestamp(eta_raw: Any, received_at: datetime) -> str | None:
+    """Best-effort AIS ETA normalization.
+
+    AIS static messages usually carry month/day/hour/minute without a year.
+    We infer the next plausible UTC occurrence relative to the receive time.
+    """
+    if eta_raw is None or eta_raw == "":
+        return None
+
+    if isinstance(eta_raw, str):
+        raw = eta_raw.strip()
+        if not raw:
+            return None
+        try:
+            return (
+                datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                .astimezone(UTC)
+                .isoformat()
+            )
+        except ValueError:
+            return None
+
+    if not isinstance(eta_raw, dict):
+        return None
+
+    month = _coalesce_int(eta_raw, "Month", "month", default=None)
+    day = _coalesce_int(eta_raw, "Day", "day", default=None)
+    hour = _coalesce_int(eta_raw, "Hour", "hour", default=0)
+    minute = _coalesce_int(eta_raw, "Minute", "minute", default=0)
+
+    if month is None or day is None or hour is None or minute is None:
+        return None
+    if month == 0 or day == 0 or hour >= 24 or minute >= 60:
+        return None
+
+    try:
+        candidate = datetime(received_at.year, month, day, hour, minute, tzinfo=UTC)
+    except ValueError:
+        return None
+
+    if candidate < received_at:
+        try:
+            candidate = datetime(
+                received_at.year + 1,
+                month,
+                day,
+                hour,
+                minute,
+                tzinfo=UTC,
+            )
+        except ValueError:
+            return None
+
+    return candidate.isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -113,38 +237,152 @@ class AISMessage(BaseModel):
     The inner Message key varies by MessageType — we only process PositionReport.
     """
 
-    MessageType: str  # e.g., "PositionReport", "VoyageData", "SafetyMessage"
+    MessageType: str | int  # e.g., "PositionReport", "VoyageData", 18, 5
     MetaData: AISMetaData  # Always present — has MMSI, ship name, lat/lon
     Message: dict[str, Any] = Field(default_factory=dict)  # Inner message — type varies
 
-    def to_record(self) -> dict[str, Any]:
+    @property
+    def message_type_name(self) -> str:
+        return str(self.MessageType)
+
+    def _payload(self, names: set[str]) -> dict[str, Any]:
+        """Return the nested AISStream payload for any accepted message name."""
+        for name in names:
+            value = self.Message.get(name)
+            if isinstance(value, dict):
+                return value
+        return self.Message if isinstance(self.Message, dict) else {}
+
+    def to_position_record(self) -> dict[str, Any] | None:
         """Flatten into a dict suitable for NDJSON storage.
 
         WHY FLATTEN: Raw AISStream JSON is nested ({MetaData: {MMSI: ...}}).
         The S3 NDJSON and downstream Postgres staging tables (Week 3) expect
         flat rows — one key per column. Flattening happens once at ingestion.
         """
-        pos = self.Message.get(
-            "PositionReport", {}
-        )  # Inner position report dict; {} if missing
+        if (
+            self.message_type_name not in POSITION_MESSAGE_TYPES
+            and self.message_type_name
+            not in {
+                "1",
+                "2",
+                "3",
+                "18",
+            }
+        ):
+            return None
+
+        pos = self._payload(POSITION_MESSAGE_TYPES)
         return {
             "mmsi": self.MetaData.MMSI,  # Primary key for vessel tracking
             # .strip() removes trailing spaces
             "ship_name": self.MetaData.ShipName.strip(),
-            "lat": self.MetaData.latitude,
-            "lon": self.MetaData.longitude,
-            "sog": pos.get(
-                "Sog", 0.0
-            ),  # Speed; 0.0 default if position report is empty
-            "cog": pos.get("Cog", 0.0),
-            "true_heading": pos.get("TrueHeading", 511),  # 511 = unavailable
-            "nav_status": pos.get("NavigationalStatus", 15),  # 15 = undefined
+            "lat": _coalesce_float(pos, "Latitude", default=self.MetaData.latitude),
+            "lon": _coalesce_float(pos, "Longitude", default=self.MetaData.longitude),
+            "sog": _coalesce_float(
+                pos,
+                "Sog",
+                "SpeedOverGround",
+                default=0.0,
+            ),
+            "cog": _coalesce_float(pos, "Cog", "CourseOverGround", default=0.0),
+            "true_heading": _coalesce_int(pos, "TrueHeading", default=511),
+            "nav_status": _coalesce_int(
+                pos,
+                "NavigationalStatus",
+                "NavigationStatus",
+                default=15,
+            ),
             "msg_type": self.MessageType,
             "received_at": datetime.now(
                 UTC
             ).isoformat(),  # ARRIVAL TIME, not event time
             # NOTE: received_at is when WE got the msg, not when vessel broadcast it.
             # This handles S3 partitions by arrival time for reproducible increments.
+        }
+
+    def to_record(self) -> dict[str, Any]:
+        """Backward-compatible alias for existing tests/callers."""
+        record = self.to_position_record()
+        if record is None:
+            raise ValueError(f"MessageType {self.MessageType} is not a position report")
+        return record
+
+    def to_voyage_record(
+        self,
+        received_at: datetime | None = None,
+    ) -> dict[str, Any] | None:
+        """Flatten static/voyage messages into the additive v2 raw source."""
+        if (
+            self.message_type_name not in VOYAGE_MESSAGE_TYPES
+            and self.message_type_name != "5"
+        ):
+            return None
+
+        received_at = received_at or datetime.now(UTC)
+        payload = self._payload(VOYAGE_MESSAGE_TYPES)
+        dimension_raw = payload.get("Dimension")
+        dimension: dict[str, Any] = (
+            dimension_raw if isinstance(dimension_raw, dict) else {}
+        )
+        eta_raw = _coalesce_value(payload, "Eta", "ETA", "EstimatedTimeOfArrival")
+        eta_raw_value = (
+            json.dumps(eta_raw, default=str) if isinstance(eta_raw, dict) else eta_raw
+        )
+        dimension_to_bow = _coalesce_int(dimension, "A", default=None)
+        dimension_to_stern = _coalesce_int(dimension, "B", default=None)
+        dimension_to_port = _coalesce_int(dimension, "C", default=None)
+        dimension_to_starboard = _coalesce_int(dimension, "D", default=None)
+
+        return {
+            "mmsi": self.MetaData.MMSI,
+            "ship_name": _coalesce_str(
+                payload,
+                "Name",
+                "ShipName",
+                default=self.MetaData.ShipName.strip(),
+            ),
+            "call_sign": _coalesce_str(payload, "CallSign", "Callsign", default=None),
+            "imo_number": _coalesce_str(
+                payload,
+                "ImoNumber",
+                "IMONumber",
+                "IMO",
+                default=None,
+            ),
+            "ship_type": _coalesce_str(payload, "Type", "ShipType", default=None),
+            "destination": _coalesce_str(payload, "Destination", default=None),
+            "eta_raw": eta_raw_value,
+            "eta_timestamp_utc": _parse_eta_timestamp(eta_raw, received_at),
+            "draught_m": _coalesce_float(
+                payload,
+                "MaximumStaticDraught",
+                "MaximumDraught",
+                "Draught",
+                default=None,
+            ),
+            "dimension_to_bow_m": _coalesce_int(
+                payload,
+                "DimensionToBow",
+                default=dimension_to_bow,
+            ),
+            "dimension_to_stern_m": _coalesce_int(
+                payload,
+                "DimensionToStern",
+                default=dimension_to_stern,
+            ),
+            "dimension_to_port_m": _coalesce_int(
+                payload,
+                "DimensionToPort",
+                default=dimension_to_port,
+            ),
+            "dimension_to_starboard_m": _coalesce_int(
+                payload,
+                "DimensionToStarboard",
+                default=dimension_to_starboard,
+            ),
+            "msg_type": self.MessageType,
+            "received_at": received_at.isoformat(),
         }
 
 
@@ -251,15 +489,23 @@ async def consume(
             "APIKey": api_key,  # Authentication
             # Geographic filter — all maritime ports in UN LOCODE
             "BoundingBoxes": BOUNDING_BOXES,
-            "FilterMessageTypes": [
-                "PositionReport"
-            ],  # Only position reports (not voyage data, etc.)
+            # Keep v1 position reports and add low-risk AIS v2 payloads in parallel.
+            "FilterMessageTypes": SUBSCRIBED_MESSAGE_TYPES,
         }
     )
 
-    buffer = RecordBuffer()  # Single buffer shared between message loop and flush task
+    position_buffer = RecordBuffer(source=SOURCE_NAME)
+    voyage_buffer = RecordBuffer(source=VOYAGE_SOURCE_NAME)
     records_received = 0
-    result = {"records_received": 0, "records_written": 0, "files_written": 0}
+    position_records_received = 0
+    voyage_records_received = 0
+    result = {
+        "records_received": 0,
+        "records_written": 0,
+        "files_written": 0,
+        "voyage_records_written": 0,
+        "voyage_files_written": 0,
+    }
 
     async def periodic_flush() -> None:
         """Flush buffer to S3 every FLUSH_INTERVAL_SEC seconds.
@@ -271,7 +517,8 @@ async def consume(
         """
         while not shutdown_event.is_set():  # Loop until SIGINT/SIGTERM received
             await asyncio.sleep(FLUSH_INTERVAL_SEC)  # Yield for 60 seconds
-            buffer.flush()  # Then flush what's accumulated
+            position_buffer.flush()  # Then flush what's accumulated
+            voyage_buffer.flush()
 
     async def watchdog_timer() -> None:
         """Gracefully shuts down the stream after max duration."""
@@ -304,13 +551,26 @@ async def consume(
                         msg = AISMessage.model_validate(
                             data
                         )  # Validate schema with Pydantic
-                        record = msg.to_record()  # Flatten to dict
-                        buffer.add(record)  # Add to in-memory buffer
+                        received_at = datetime.now(UTC)
+                        position_record = msg.to_position_record()
+                        voyage_record = msg.to_voyage_record(received_at)
+
+                        if position_record is not None:
+                            position_buffer.add(position_record)
+                            position_records_received += 1
+                        if voyage_record is not None:
+                            voyage_buffer.add(voyage_record)
+                            voyage_records_received += 1
+
                         records_received += 1
 
                         # Log every 500 records to avoid log spam in production
-                        if buffer.size % 500 == 0:
-                            logger.debug("buffer_status", size=buffer.size)
+                        if records_received % 500 == 0:
+                            logger.debug(
+                                "buffer_status",
+                                position_size=position_buffer.size,
+                                voyage_size=voyage_buffer.size,
+                            )
 
                     except Exception:
                         logger.exception("message_parse_error")
@@ -333,12 +593,28 @@ async def consume(
     finally:
         flush_task.cancel()
         watchdog_task.cancel()
-        flushed = buffer.flush()
-        logger.info("final_flush", records_flushed=flushed)
+        position_flushed = position_buffer.flush()
+        voyage_flushed = voyage_buffer.flush()
+        logger.info(
+            "final_flush",
+            position_records_flushed=position_flushed,
+            voyage_records_flushed=voyage_flushed,
+        )
         result = {
             "records_received": records_received,
-            "records_written": buffer.total_flushed,
-            "files_written": buffer.files_written,
+            "position_records_received": position_records_received,
+            "voyage_records_received": voyage_records_received,
+            # Backward-compatible v1 summary keys for existing metrics/runbooks.
+            "records_written": position_buffer.total_flushed,
+            "files_written": position_buffer.files_written,
+            "voyage_records_written": voyage_buffer.total_flushed,
+            "voyage_files_written": voyage_buffer.files_written,
+            "total_records_written": (
+                position_buffer.total_flushed + voyage_buffer.total_flushed
+            ),
+            "total_files_written": (
+                position_buffer.files_written + voyage_buffer.files_written
+            ),
         }
     return result
 

@@ -7,6 +7,7 @@ This page defines the storage and data contract for the serverless pilot.
 The live system writes raw data under date-partitioned prefixes:
 
 - `raw/source=ais/date=YYYY-MM-DD/`
+- `raw/source=ais_voyage/date=YYYY-MM-DD/`
 - `raw/source=weather/date=YYYY-MM-DD/`
 - `raw/source=noaa_tides/date=YYYY-MM-DD/`
 - `raw/source=gdelt_events/date=YYYY-MM-DD/`
@@ -36,6 +37,8 @@ Why this matters:
 
 - `raw_ais_positions`
   - includes `ship_name`, not `vessel_name`
+- `raw_ais_voyage`
+  - additive AIS v2 static/voyage source; old position data is not rewritten
 - `raw_weather_observations`
 - `raw_noaa_tides`
 - `raw_gdelt_events`
@@ -51,10 +54,12 @@ This column naming matters because the export Lambda queries Athena directly and
 Writes:
 
 - raw AIS NDJSON objects
+- additive static/voyage AIS NDJSON objects when those messages are present
 
 Expected output signal:
 
 - at least one file for a healthy run
+- voyage files may be zero on a run because static/voyage broadcasts are less frequent
 
 ### Weather
 

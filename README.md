@@ -48,10 +48,10 @@ Athena CTAS feature tables
 LightGBM training and prediction
           |
           v
-dashboard artifacts in S3/CloudFront
+dashboard data artifacts in S3/CloudFront
           |
           v
-React + Vite operations dashboard
+React + Vite operations dashboard on Vercel
 ```
 
 ## Repository Layout
@@ -142,6 +142,14 @@ uv run python models/training/predict.py --port NLRTM
 uv run python scripts/refresh_predictions.py
 ```
 
+For the additive AIS v2 experiment, keep serving on the current model and write
+candidate artifacts separately:
+
+```bash
+uv run python models/training/build_dataset_v2.py --start-hour "2026-06-14 15:00:00"
+uv run python models/training/train_v2.py
+```
+
 ## Live Deploy
 
 Copy the template and add only your own local values:
@@ -179,6 +187,8 @@ Handle secrets with a template-plus-runtime pattern:
 - Use GitHub Actions secrets for CI/CD values.
 - Use Vercel project environment variables for dashboard deployment values such
   as `VITE_DATA_URL`.
+- Treat CloudFront as the public data-artifact CDN only; the public dashboard UI
+  is the Vercel production app.
 - Use AWS Systems Manager Parameter Store or AWS Secrets Manager for long-lived
   production secrets when the stack grows beyond the current pilot.
 
