@@ -14,7 +14,7 @@ Parameters:
     Description: AISStream API key for hourly AIS snapshots.
   AisDurationSeconds:
     Type: Number
-    Default: 300
+    Default: 420
     MinValue: 300
     MaxValue: 420
     Description: Hourly AIS websocket capture window.
