@@ -8,6 +8,10 @@
       "source": "/live-data.json",
       "destination": "https://dz4lgcial54jx.cloudfront.net/demo-data.json"
     },
+    {
+      "source": "/live-roadmap.json",
+      "destination": "https://dz4lgcial54jx.cloudfront.net/roadmap.json"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
