@@ -222,9 +222,9 @@
             {
               "id": "serverless-live-verification",
               "label": "Verify the public CloudFront dashboard reads current demo-data, predictions, and roadmap artifacts.",
-              "status": "doing",
-              "timeframe": "Next live publish",
-              "notes": "Current stakeholder check found stale or zero-valued public artifacts, so live freshness must be confirmed end to end."
+              "status": "done",
+              "timeframe": "Verified 2026-06-14",
+              "notes": "Verified CloudFront demo-data.json generated at 2026-06-14 11:25 UTC with 10 ports and nonzero vessel metrics, predictions.json generated at 2026-06-14 11:30 UTC with 10 scored ports, then published roadmap.json and confirmed HTTP 200 through CloudFront."
             },
             {
               "id": "serverless-export-cadence",
