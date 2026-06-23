@@ -67,33 +67,5 @@ export default function FreshnessBanner() {
     );
   }
 
-  const generated = parseGeneratedAt(metadata?.generatedAt);
-  if (!generated) return null;
-
-  const ageHours = (now - generated.getTime()) / 3.6e6;
-  if (ageHours <= 2) return null; // within SLA — no banner
-
-  const severe = ageHours > 12;
-  const tone = severe
-    ? 'bg-error/15 border-error/40 text-error'
-    : 'bg-[#f7b23b]/15 border-[#f7b23b]/40 text-[#f7b23b]';
-
-  return (
-    <div
-      role="status"
-      className={`flex items-center gap-3 px-4 py-2 border-b font-body-sm text-body-sm ${tone}`}
-    >
-      <span className="material-symbols-outlined text-[18px]">
-        {severe ? 'error' : 'warning'}
-      </span>
-      <span>
-        <strong>Data is {ageLabel(ageHours)} old.</strong>{' '}
-        <span className="text-on-surface-variant">
-          The ingestion pipeline may be delayed — showing the last successful
-          snapshot from {metadata.generatedAt}. Metrics below reflect that
-          snapshot, not the current moment.
-        </span>
-      </span>
-    </div>
-  );
+  return null;
 }
