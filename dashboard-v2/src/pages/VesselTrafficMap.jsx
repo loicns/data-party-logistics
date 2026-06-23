@@ -1,8 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { installTransparentMissingImageHandler } from '../utils/mapLibreImages';
+import { useLiveAis } from '../hooks/useLiveAis';
+import LiveAisPanel from '../components/LiveAisPanel';
+
+function hasProviderCoverageIssue(port) {
+  return ['coverage_limited', 'no_provider_messages'].includes(port?.aisDiagnostics?.status);
+}
 
 export default function VesselTrafficMap() {
   const { port } = useData();
@@ -12,6 +18,15 @@ export default function VesselTrafficMap() {
   const [selectedVessel, setSelectedVessel] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [activeZone, setActiveZone] = useState('all');
+
+  // ── Live AIS state ────────────────────────────────────────────────────────
+  const [liveEnabled, setLiveEnabled] = useState(false);
+  const [aisApiKey, setAisApiKey] = useState(null);
+  const { liveVessels, status: liveStatus, vesselCount } = useLiveAis(
+    liveEnabled ? aisApiKey : null,
+    port
+  );
+  const handleApiKeyChange = useCallback((key) => setAisApiKey(key), []);
 
   useEffect(() => {
     if (map.current || !port) return;
@@ -45,7 +60,11 @@ export default function VesselTrafficMap() {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    port.vessels.forEach((vessel) => {
+    // Choose data source: live WebSocket vessels or static backend data
+    const vessels = (liveEnabled && liveVessels.length > 0) ? liveVessels : port.vessels;
+    const isLive = liveEnabled && liveVessels.length > 0;
+
+    vessels.forEach((vessel) => {
       if (activeZone !== 'all' && vessel.zone !== activeZone) return;
 
       const el = document.createElement('div');
@@ -55,6 +74,12 @@ export default function VesselTrafficMap() {
       else if (vessel.zone === 'anchor') el.style.backgroundColor = '#f7b23b';
       else if (vessel.zone === 'approaching') el.style.backgroundColor = '#1ea7ff';
       else el.style.backgroundColor = '#7f8ea6';
+
+      // Pulsing glow effect for live vessels
+      if (isLive) {
+        el.style.boxShadow = `0 0 8px 2px ${el.style.backgroundColor}`;
+        el.style.animation = 'live-pulse 2s ease-in-out infinite';
+      }
 
       el.addEventListener('click', () => {
         setSelectedVessel(vessel);
@@ -66,7 +91,7 @@ export default function VesselTrafficMap() {
 
       markersRef.current.push(marker);
     });
-  }, [port, mapLoaded, activeZone]);
+  }, [port, mapLoaded, activeZone, liveEnabled, liveVessels]);
 
   const handleRangeClick = (nm) => {
     if (!map.current || !port) return;
@@ -83,9 +108,27 @@ export default function VesselTrafficMap() {
   };
 
   if (!port) return null;
+  const providerCoverageIssue = hasProviderCoverageIssue(port);
 
   return (
     <div className="flex-1 relative bg-[#111412] h-full overflow-hidden flex rounded-xl border border-outline-variant/30">
+      {/* Pulsing animation for live markers */}
+      <style>{`
+        @keyframes live-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.3); }
+        }
+      `}</style>
+
+      {/* Live AIS Panel */}
+      <LiveAisPanel
+        enabled={liveEnabled}
+        onToggle={() => setLiveEnabled((prev) => !prev)}
+        status={liveStatus}
+        vesselCount={vesselCount}
+        apiKey={aisApiKey}
+        onApiKeyChange={handleApiKeyChange}
+      />
 
       {/* Filters & Controls */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-4">
@@ -154,6 +197,21 @@ export default function VesselTrafficMap() {
       </div>
 
       <div ref={mapContainer} className="absolute inset-0 z-10 w-full h-full bg-[#1b1c1b]"></div>
+
+      {providerCoverageIssue && (port.vessels?.length ?? 0) === 0 && (
+        <div className="absolute left-1/2 top-24 z-20 w-[min(460px,calc(100%-2rem))] -translate-x-1/2 rounded border border-error/50 bg-surface-container/95 p-4 text-center shadow-[0px_4px_12px_rgba(0,0,0,0.5)] backdrop-blur-sm">
+          <div className="flex items-center justify-center gap-2 text-error font-title-sm text-title-sm">
+            <span className="material-symbols-outlined text-[20px]">cell_tower</span>
+            AIS provider coverage limited
+          </div>
+          <p className="mt-2 font-body-sm text-body-sm text-on-surface">
+            No AIS messages received from provider.
+          </p>
+          <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant">
+            UAE/Gulf ports require second-source validation before live tracking claims.
+          </p>
+        </div>
+      )}
 
       {selectedVessel && (
         <aside className="absolute right-0 top-0 h-full w-80 bg-surface-container/95 backdrop-blur-md border-l border-outline-variant shadow-[-8px_0_24px_rgba(0,0,0,0.5)] z-30 flex flex-col transform transition-transform duration-300">
