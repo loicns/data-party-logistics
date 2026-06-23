@@ -59,3 +59,22 @@ def test_seed_covers_all_pilot_ports() -> None:
     centers = load_port_centers(SEED)
     missing = [code for code in pilot if code not in centers]
     assert not missing, f"Seed is missing pilot ports: {missing}"
+
+
+def test_seed_can_build_only_pilot_bounding_boxes() -> None:
+    # AISStream closes connections when we send the whole global LOCODE set.
+    # The serverless subscription must stay scoped to pilot ports.
+    pilot = {
+        "NLRTM",
+        "SGSIN",
+        "USLAX",
+        "CNSHA",
+        "DEHAM",
+        "BEANR",
+        "GBFXT",
+        "AEDXB",
+        "USNYC",
+        "TWKHH",
+    }
+    bboxes = load_port_bboxes(SEED, include_locodes=pilot)
+    assert len(bboxes) == len(pilot)

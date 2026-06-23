@@ -1,7 +1,8 @@
 # DPL Dashboard (dashboard-v2)
 
 React + Vite dashboard for the Data Party Logistics port-congestion pilot.
-Reads two static artifacts from CloudFront — no backend API in production.
+Runs on Vercel and reads static artifacts from CloudFront — no backend API in
+production. CloudFront is data-only; its root path is not a dashboard UI.
 
 ## Data sources
 
@@ -37,6 +38,11 @@ Push to `main` — the Vercel git integration builds and promotes automatically
 (project `dpl-dashboard`, root directory `dashboard-v2`). CLI alternative:
 run `vercel --prod` from the **repo root**, not from inside `dashboard-v2`
 (the project's root-directory setting would double the path).
+
+Production UI: `https://dpl-dashboadrd.vercel.app/`
+Data CDN: `https://dz4lgcial54jx.cloudfront.net/` (`/demo-data.js`,
+`/demo-data.json`, `/predictions.json`, `/roadmap.json`; `/` intentionally does
+not serve the app).
 
 ## Page map
 

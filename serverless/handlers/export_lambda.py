@@ -18,6 +18,24 @@ from serverless.s3_health import latest_object_for_prefix, object_age_minutes
 # result; only the shipped list is truncated — 16k vessels made demo-data.js
 # multi-MB and unrenderable as map markers.
 MAX_VESSELS_PER_PORT = 250
+# The model can use a wide 200nm inbound context, but the live dashboard vessel
+# list should describe near-port traffic. A 200nm display radius caused nearby
+# coastal traffic to be attributed to the wrong port, especially around Taiwan.
+SURFACED_VESSEL_RADIUS_NM = 50
+DIAGNOSTIC_RADIUS_NM = 200
+
+AIS_COVERAGE_OVERRIDES: dict[str, dict[str, str]] = {
+    "AEDXB": {
+        "status": "coverage_limited",
+        "message": "No AIS messages received from provider.",
+        "detail": (
+            "AISStream coverage for Dubai/Jebel Ali is currently limited in "
+            "the UAE/Gulf feed; validate with a second AIS source before "
+            "claiming live tracking."
+        ),
+        "secondSourceValidation": "required",
+    }
+}
 
 
 def _env(name: str, default: str = "") -> str:
@@ -50,6 +68,12 @@ def _sources(bucket: str) -> list[dict[str, Any]]:
             "raw/source=noaa_tides/",
             "US tidal predictions from NOAA CO-OPS",
             15,
+        ),
+        (
+            "GDELT Maritime Events",
+            "raw/source=gdelt_events/",
+            "News-derived disruption events from GDELT DOC",
+            10,
         ),
     ]
     results: list[dict[str, Any]] = []
@@ -87,6 +111,18 @@ def _safe_float(value: str | None, default: float = 0.0) -> float:
         return default
 
 
+def _safe_int(value: str | None, default: int = 0) -> int:
+    try:
+        return int(float(value)) if value not in {None, ""} else default
+    except ValueError:
+        return default
+
+
+def _format_timestamp(value: Any) -> str | None:
+    text = str(value or "").strip()
+    return text or None
+
+
 def _nav_status_parts(nav_status: Any) -> tuple[str, int | None]:
     status_text = str(nav_status or "").strip().lower()
     if isinstance(nav_status, int):
@@ -104,9 +140,21 @@ def _pad(values: list[float], size: int, fill: float = 0.0) -> list[float]:
     return [values[0]] * (size - len(values)) + values
 
 
+def _port_coords_values_sql() -> str:
+    return ",\n        ".join(
+        f"('{code}', {meta['lat']}, {meta['lon']})" for code, meta in PORTS.items()
+    )
+
+
 def _summary_sql(port_code: str, lat: float, lon: float) -> str:
     return f"""
-WITH latest AS (
+WITH port_coords AS (
+    SELECT port_code, lat, lon
+    FROM (VALUES
+        {_port_coords_values_sql()}
+    ) AS t(port_code, lat, lon)
+),
+latest AS (
     SELECT mmsi, max(from_iso8601_timestamp(received_at)) AS max_observed
     FROM raw_ais_positions
     WHERE date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
@@ -122,22 +170,35 @@ current_positions AS (
      AND from_iso8601_timestamp(a.received_at) = l.max_observed
     WHERE a.date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
 ),
-with_distance AS (
+scored AS (
     SELECT
+        p.port_code,
         mmsi,
         ship_name,
-        lat,
-        lon,
+        a.lat,
+        a.lon,
         sog,
         nav_status,
         3440.065 * 2 * asin(
             sqrt(
-                power(sin(radians(lat - {lat}) / 2), 2) +
-                cos(radians({lat})) * cos(radians(lat)) *
-                power(sin(radians(lon - {lon}) / 2), 2)
+                power(sin(radians(a.lat - p.lat) / 2), 2) +
+                cos(radians(p.lat)) * cos(radians(a.lat)) *
+                power(sin(radians(a.lon - p.lon) / 2), 2)
             )
         ) AS distance_nm
-    FROM current_positions
+    FROM current_positions a
+    CROSS JOIN port_coords p
+),
+with_distance AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            row_number() OVER (PARTITION BY mmsi ORDER BY distance_nm) AS port_rank
+        FROM scored
+    )
+    WHERE port_code = '{port_code}'
+      AND port_rank = 1
 )
 SELECT
     count(*) AS total_vessels,
@@ -158,13 +219,19 @@ SELECT
           AND w.date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
     ) AS max_wave_height_m
 FROM with_distance
-WHERE distance_nm <= 200
+WHERE distance_nm <= {SURFACED_VESSEL_RADIUS_NM}
 """
 
 
 def _trend_sql(port_code: str, lat: float, lon: float) -> str:
     return f"""
-WITH daily_positions AS (
+WITH port_coords AS (
+    SELECT port_code, lat, lon
+    FROM (VALUES
+        {_port_coords_values_sql()}
+    ) AS t(port_code, lat, lon)
+),
+daily_positions AS (
     SELECT
         date,
         mmsi,
@@ -179,17 +246,34 @@ WITH daily_positions AS (
 ),
 scored AS (
     SELECT
+        p.port_code,
         date,
+        mmsi,
         3440.065 * 2 * asin(
             sqrt(
-                power(sin(radians(lat - {lat}) / 2), 2) +
-                cos(radians({lat})) * cos(radians(lat)) *
-                power(sin(radians(lon - {lon}) / 2), 2)
+                power(sin(radians(h.lat - p.lat) / 2), 2) +
+                cos(radians(p.lat)) * cos(radians(h.lat)) *
+                power(sin(radians(h.lon - p.lon) / 2), 2)
             )
         ) AS distance_nm,
         sog,
         nav_status
-    FROM daily_positions
+    FROM daily_positions h
+    CROSS JOIN port_coords p
+),
+with_distance AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            row_number() OVER (
+                PARTITION BY date, mmsi
+                ORDER BY distance_nm
+            ) AS port_rank
+        FROM scored
+    )
+    WHERE port_code = '{port_code}'
+      AND port_rank = 1
 ),
 weather_daily AS (
     SELECT date, max(wave_height_m) AS max_wave_height_m
@@ -211,18 +295,24 @@ SELECT
     ) AS vessels_at_anchor,
     avg(coalesce(sog, 0)) AS avg_speed_in_zone,
     coalesce(max(w.max_wave_height_m), 0) AS max_wave_height_m
-FROM scored s
+FROM with_distance s
 LEFT JOIN weather_daily w ON s.date = w.date
-WHERE distance_nm <= 200
+WHERE distance_nm <= {SURFACED_VESSEL_RADIUS_NM}
 GROUP BY s.date
 ORDER BY s.date DESC
 LIMIT 6
 """
 
 
-def _vessels_sql(lat: float, lon: float) -> str:
+def _vessels_sql(port_code: str, lat: float, lon: float) -> str:
     return f"""
-WITH latest AS (
+WITH port_coords AS (
+    SELECT port_code, lat, lon
+    FROM (VALUES
+        {_port_coords_values_sql()}
+    ) AS t(port_code, lat, lon)
+),
+latest AS (
     SELECT mmsi, max(from_iso8601_timestamp(received_at)) AS max_observed
     FROM raw_ais_positions
     WHERE date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
@@ -238,22 +328,35 @@ current_positions AS (
      AND from_iso8601_timestamp(a.received_at) = l.max_observed
     WHERE a.date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
 ),
-with_distance AS (
+scored AS (
     SELECT
+        p.port_code,
         mmsi,
         ship_name,
-        lat,
-        lon,
+        a.lat,
+        a.lon,
         sog,
         nav_status,
         3440.065 * 2 * asin(
             sqrt(
-                power(sin(radians(lat - {lat}) / 2), 2) +
-                cos(radians({lat})) * cos(radians(lat)) *
-                power(sin(radians(lon - {lon}) / 2), 2)
+                power(sin(radians(a.lat - p.lat) / 2), 2) +
+                cos(radians(p.lat)) * cos(radians(a.lat)) *
+                power(sin(radians(a.lon - p.lon) / 2), 2)
             )
         ) AS distance_nm
-    FROM current_positions
+    FROM current_positions a
+    CROSS JOIN port_coords p
+),
+with_distance AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            row_number() OVER (PARTITION BY mmsi ORDER BY distance_nm) AS port_rank
+        FROM scored
+    )
+    WHERE port_code = '{port_code}'
+      AND port_rank = 1
 ),
 classified AS (
     SELECT
@@ -281,12 +384,112 @@ SELECT
     nav_status,
     distance_nm
 FROM classified
-WHERE distance_nm <= 200
+WHERE distance_nm <= {SURFACED_VESSEL_RADIUS_NM}
 ORDER BY
     zone_priority ASC,
     distance_nm ASC,
     coalesce(sog, 0) DESC
 """
+
+
+def _ais_diagnostics_sql(port_code: str, lat: float, lon: float) -> str:
+    return f"""
+WITH recent_positions AS (
+    SELECT
+        from_iso8601_timestamp(received_at) AS observed_at,
+        lat,
+        lon
+    FROM raw_ais_positions
+    WHERE date >= date_format(current_date - INTERVAL '2' DAY, '%Y-%m-%d')
+      AND from_iso8601_timestamp(received_at)
+        >= current_timestamp - INTERVAL '6' HOUR
+),
+scored AS (
+    SELECT
+        observed_at,
+        3440.065 * 2 * asin(
+            sqrt(
+                power(sin(radians(lat - {lat}) / 2), 2) +
+                cos(radians({lat})) * cos(radians(lat)) *
+                power(sin(radians(lon - {lon}) / 2), 2)
+            )
+        ) AS distance_nm
+    FROM recent_positions
+)
+SELECT
+    sum(CASE WHEN distance_nm <= {SURFACED_VESSEL_RADIUS_NM} THEN 1 ELSE 0 END)
+        AS messages_within_50nm,
+    sum(CASE WHEN distance_nm <= {DIAGNOSTIC_RADIUS_NM} THEN 1 ELSE 0 END)
+        AS messages_within_200nm,
+    max(CASE WHEN distance_nm <= {SURFACED_VESSEL_RADIUS_NM} THEN observed_at END)
+        AS latest_within_50nm,
+    max(CASE WHEN distance_nm <= {DIAGNOSTIC_RADIUS_NM} THEN observed_at END)
+        AS latest_within_200nm,
+    min(CASE WHEN distance_nm <= {DIAGNOSTIC_RADIUS_NM} THEN distance_nm END)
+        AS nearest_distance_nm
+FROM scored
+"""
+
+
+def _build_ais_diagnostics(
+    database: str,
+    output_location: str,
+    port_code: str,
+    lat: float,
+    lon: float,
+) -> dict[str, Any]:
+    row = (
+        first_row(
+            _ais_diagnostics_sql(port_code, lat, lon),
+            database=database,
+            output_location=output_location,
+        )
+        or {}
+    )
+    messages_50nm = _safe_int(row.get("messages_within_50nm"))
+    messages_200nm = _safe_int(row.get("messages_within_200nm"))
+    override = AIS_COVERAGE_OVERRIDES.get(port_code)
+
+    if override:
+        status = override["status"]
+        message = override["message"]
+        detail = override["detail"]
+        second_source_validation = override["secondSourceValidation"]
+    elif messages_50nm > 0:
+        status = "active"
+        message = "AIS messages received from provider."
+        detail = (
+            "Recent provider messages are available within the live dashboard radius."
+        )
+        second_source_validation = "not_required"
+    elif messages_200nm > 0:
+        status = "nearby_only"
+        message = "No AIS messages received within 50nm."
+        detail = (
+            "Provider messages exist within 200nm, but not in the live "
+            "dashboard radius."
+        )
+        second_source_validation = "not_required"
+    else:
+        status = "no_provider_messages"
+        message = "No AIS messages received from provider."
+        detail = "No recent provider messages were found within 200nm of this port."
+        second_source_validation = "recommended"
+
+    return {
+        "status": status,
+        "message": message,
+        "detail": detail,
+        "latestMessageWithin50nm": _format_timestamp(row.get("latest_within_50nm")),
+        "latestMessageWithin200nm": _format_timestamp(row.get("latest_within_200nm")),
+        "messageCountWithin50nm": messages_50nm,
+        "messageCountWithin200nm": messages_200nm,
+        "providerMessageCount": messages_200nm,
+        "nearestDistanceNm": round(_safe_float(row.get("nearest_distance_nm")), 1)
+        if row.get("nearest_distance_nm") not in {None, ""}
+        else None,
+        "secondSourceValidation": second_source_validation,
+    }
 
 
 def _zone(distance_nm: float, speed_knots: float, nav_status: Any) -> str:
@@ -387,9 +590,16 @@ def _build_port_payload(
     trend_values = _pad(trend_values, 6, 0.0)
 
     vessel_rows = run_query(
-        _vessels_sql(meta["lat"], meta["lon"]),
+        _vessels_sql(port_code, meta["lat"], meta["lon"]),
         database=database,
         output_location=output_location,
+    )
+    ais_diagnostics = _build_ais_diagnostics(
+        database,
+        output_location,
+        port_code,
+        meta["lat"],
+        meta["lon"],
     )
     # All metrics/schedule below are computed from the FULL vessel set; only the
     # serialized list is capped (see MAX_VESSELS_PER_PORT) to keep demo-data.js
@@ -491,6 +701,7 @@ def _build_port_payload(
         # operationally relevant vessels (berthed, anchored, nearest inbound).
         "vessels": vessels[:MAX_VESSELS_PER_PORT],
         "vesselsTotal": len(vessels),
+        "aisDiagnostics": ais_diagnostics,
         "berthAllocations": berth_allocations,
         "schedule": schedule,
     }

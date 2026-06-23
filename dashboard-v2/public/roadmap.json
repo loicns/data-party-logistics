@@ -1,7 +1,7 @@
 {
   "schemaVersion": "2026-06-13.2",
   "title": "Data Party Logistics Master Roadmap",
-  "lastUpdated": "2026-06-13",
+  "lastUpdated": "2026-06-14",
   "visibility": "public-read",
   "publicAudience": "Stakeholders, pilot users, advisors, and delivery agents who need a shared view of completed, active, and backlog work.",
   "sourceOfTruth": {
@@ -149,6 +149,161 @@
       ]
     },
     {
+      "id": "local-demo-onboarding",
+      "name": "Local Demo and Contributor Onboarding",
+      "status": "backlog",
+      "timeframe": "Next onboarding sprint",
+      "summary": "Make the project useful from a fresh clone without AWS, Vercel, private API keys, or maintainer context.",
+      "stakeholderOutcome": "Any evaluator or contributor can run one documented local path that gets data, trains a small model, exports dashboard artifacts, and opens a simple dashboard.",
+      "milestones": [
+        {
+          "id": "local-demo-data-bootstrap",
+          "name": "No-account data bootstrap",
+          "status": "backlog",
+          "timeframe": "1 week",
+          "owner": "Data + DX",
+          "stakeholderOutcome": "A new user can create a realistic local dataset without cloud credentials.",
+          "sourceDocs": [
+            "README.md",
+            "docs/secrets-and-environments.md",
+            "docs/blueprint/10-DATA-DICTIONARY.md"
+          ],
+          "tasks": [
+            {
+              "id": "local-demo-command",
+              "label": "Add a single command such as `make local-demo` or `uv run python scripts/local_demo.py`.",
+              "status": "todo",
+              "timeframe": "1-2 days",
+              "notes": "Command should create required local folders, check dependencies, and print the next dashboard URL."
+            },
+            {
+              "id": "local-demo-data-source",
+              "label": "Choose no-secret public/sample data sources and cache them locally.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Prefer committed tiny fixtures plus optional public downloads. The path must work offline after the first successful run."
+            },
+            {
+              "id": "local-demo-normalize",
+              "label": "Normalize local data into the same feature and dashboard contracts used by production.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Avoid a second demo-only schema; reuse the data dictionary fields wherever possible."
+            }
+          ]
+        },
+        {
+          "id": "local-demo-training-loop",
+          "name": "Local training and prediction loop",
+          "status": "backlog",
+          "timeframe": "1 week",
+          "owner": "ML",
+          "stakeholderOutcome": "A user can train a small baseline model locally and see predictions generated from their local data.",
+          "sourceDocs": [
+            "models/features.py",
+            "models/training/train.py",
+            "models/training/predict.py",
+            "docs/model-card.md"
+          ],
+          "tasks": [
+            {
+              "id": "local-demo-train-fast",
+              "label": "Create a fast local training mode that runs on a laptop in a few minutes.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Use a small sample, deterministic seed, and clear caveat that local-demo accuracy is illustrative."
+            },
+            {
+              "id": "local-demo-predict",
+              "label": "Write local predictions to `dashboard-v2/public/predictions.json` or a generated local artifact path.",
+              "status": "todo",
+              "timeframe": "1-2 days",
+              "notes": "The dashboard should display locally generated predictions without CloudFront."
+            },
+            {
+              "id": "local-demo-metrics",
+              "label": "Print simple training metrics and a plain-English model caveat.",
+              "status": "todo",
+              "timeframe": "1 day",
+              "notes": "The local path should teach users what was trained, what data was used, and what not to overclaim."
+            }
+          ]
+        },
+        {
+          "id": "local-demo-dashboard-artifacts",
+          "name": "Local dashboard artifact export",
+          "status": "backlog",
+          "timeframe": "1 week",
+          "owner": "Frontend + Data",
+          "stakeholderOutcome": "The local dashboard shows the user-generated dataset and predictions, not only a static fixture.",
+          "sourceDocs": [
+            "dashboard-v2/README.md",
+            "dashboard-v2/src/context/DataContext.jsx",
+            "dashboard-v2/src/hooks/usePredictions.js"
+          ],
+          "tasks": [
+            {
+              "id": "local-demo-export-demo-data",
+              "label": "Generate `demo-data.js` and `demo-data.json` from the local normalized data.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Keep the browser contract aligned with production so local and live modes exercise the same UI."
+            },
+            {
+              "id": "local-demo-mode-banner",
+              "label": "Show a clear local-demo mode label in the dashboard when generated local artifacts are loaded.",
+              "status": "todo",
+              "timeframe": "1 day",
+              "notes": "Users should know they are looking at local illustrative data, not the live CloudFront feed."
+            },
+            {
+              "id": "local-demo-simple-dashboard",
+              "label": "Provide a simple dashboard route or focused view for the local demo path.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "The first local experience should prioritize port metrics, predictions, and data freshness over the full production surface."
+            }
+          ]
+        },
+        {
+          "id": "local-demo-docs-and-tests",
+          "name": "Local demo docs and verification",
+          "status": "backlog",
+          "timeframe": "1 week",
+          "owner": "DX + QA",
+          "stakeholderOutcome": "A fresh-clone user can follow the README and know whether their local run succeeded.",
+          "sourceDocs": [
+            "README.md",
+            "dashboard-v2/README.md",
+            "tests/"
+          ],
+          "tasks": [
+            {
+              "id": "local-demo-readme",
+              "label": "Document the full no-AWS path in the root README and dashboard README.",
+              "status": "todo",
+              "timeframe": "1 day",
+              "notes": "Include prerequisites, expected runtime, generated files, reset command, and troubleshooting."
+            },
+            {
+              "id": "local-demo-smoke-test",
+              "label": "Add a smoke test that runs the local artifact generator and validates dashboard JSON shape.",
+              "status": "todo",
+              "timeframe": "1-2 days",
+              "notes": "CI should catch schema drift before the local demo breaks for new users."
+            },
+            {
+              "id": "local-demo-browser-check",
+              "label": "Verify the local dashboard starts and renders generated data in a browser.",
+              "status": "todo",
+              "timeframe": "1 day",
+              "notes": "At minimum, document a manual check; ideally add a lightweight Playwright smoke test."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "serverless-runtime",
       "name": "Serverless Live Data Platform",
       "status": "doing",
@@ -221,10 +376,10 @@
             },
             {
               "id": "serverless-live-verification",
-              "label": "Verify the public CloudFront dashboard reads current demo-data, predictions, and roadmap artifacts.",
+              "label": "Verify the Vercel dashboard reads current CloudFront demo-data, predictions, and roadmap artifacts.",
               "status": "done",
               "timeframe": "Verified 2026-06-14",
-              "notes": "Verified CloudFront demo-data.json generated at 2026-06-14 11:25 UTC with 10 ports and nonzero vessel metrics, predictions.json generated at 2026-06-14 11:30 UTC with 10 scored ports, then published roadmap.json and confirmed HTTP 200 through CloudFront."
+              "notes": "Verified CloudFront demo-data.json generated at 2026-06-14 11:25 UTC with 10 ports and nonzero vessel metrics, predictions.json generated at 2026-06-14 11:30 UTC with 10 scored ports, then published roadmap.json and confirmed HTTP 200 through CloudFront. Production UI is Vercel; CloudFront root is data-only."
             },
             {
               "id": "serverless-export-cadence",
@@ -551,21 +706,21 @@
               "label": "Verify main-branch dashboard changes deploy automatically to the public frontend host.",
               "status": "doing",
               "timeframe": "Current live verification",
-              "notes": "README documents Vercel Git deployment; production promotion still needs live confirmation."
+              "notes": "Production promotion was confirmed on 2026-06-14; https://dpl-dashboadrd.vercel.app/ is the public UI."
             },
             {
               "id": "dashboard-spa-deep-links",
               "label": "Verify direct links such as /schedule and /roadmap open correctly on the public host.",
               "status": "doing",
               "timeframe": "Current live verification",
-              "notes": "Vercel rewrite config exists; the live host must be checked so stakeholders can share direct links."
+              "notes": "Vercel rewrite config exists; the live host is the stakeholder-facing URL."
             },
             {
-              "id": "dashboard-cloudfront-fallback",
-              "label": "Add or confirm an index.html fallback if the dashboard remains on S3 and CloudFront.",
-              "status": "todo",
-              "timeframe": "If AWS static hosting remains active",
-              "notes": "Needed only for the S3 and CloudFront hosting path."
+              "id": "dashboard-cloudfront-data-only",
+              "label": "Keep CloudFront data-only and prevent the old S3 dashboard shell from being served.",
+              "status": "done",
+              "timeframe": "Done 2026-06-14",
+              "notes": "Removed old index.html and UI assets from the public dashboard bucket; CloudFront / returns 403 while data artifacts remain readable."
             }
           ]
         },
@@ -678,6 +833,146 @@
       ]
     },
     {
+      "id": "supply-chain-shortage-intelligence",
+      "name": "Supply Chain Shortage Intelligence",
+      "status": "backlog",
+      "timeframe": "After congestion forecast surface is stable",
+      "summary": "Add an explainable early-warning layer that estimates likely supply-chain exposure from existing AIS, port, weather, NOAA, and event signals without buying new data.",
+      "stakeholderOutcome": "Stakeholders can see whether delays are likely to affect fuel, circuits/electronics, food, autos, industrial inputs, or other sectors, while understanding the confidence and limits of each claim.",
+      "milestones": [
+        {
+          "id": "shortage-prediction-artifact",
+          "name": "Supply chain shortage prediction artifact",
+          "status": "backlog",
+          "timeframe": "Current backlog review",
+          "owner": "Product",
+          "stakeholderOutcome": "The team has a stakeholder-readable artifact that explains what shortage prediction is possible with the current platform, what requires paid or private data, and how the idea should enter the product backlog.",
+          "sourceDocs": [
+            "docs/decisions/backlog.md"
+          ],
+          "tasks": [
+            {
+              "id": "shortage-artifact-review",
+              "label": "Review the standalone shortage prediction artifact and decide whether it becomes part of the next stakeholder demo narrative.",
+              "status": "todo",
+              "timeframe": "Current backlog review",
+              "notes": "Artifact lives at /Users/loicns/Downloads/supply-chain-shortage-prediction-artifact.html; keep the public roadmap focused on the product decision rather than the local file path."
+            },
+            {
+              "id": "shortage-artifact-claim-boundary",
+              "label": "Approve the claim boundary: no-cost data can predict sector exposure risk, not exact cargo, SKU, importer, or inventory shortage.",
+              "status": "todo",
+              "timeframe": "Current backlog review",
+              "notes": "This wording protects trust while still positioning the platform for fuel, electronics, food, autos, and industrial-input risk intelligence."
+            },
+            {
+              "id": "shortage-artifact-demo-angle",
+              "label": "Choose the first demo angle for shortage intelligence: fuel, circuits/electronics, or broader supply-chain exposure.",
+              "status": "todo",
+              "timeframe": "Current backlog review",
+              "notes": "Fuel is the strongest no-cost signal; circuits and electronics are commercially compelling but more inference-heavy."
+            }
+          ]
+        },
+        {
+          "id": "shortage-exposure-mapper",
+          "name": "No-cost exposure mapper",
+          "status": "backlog",
+          "timeframe": "1 week",
+          "owner": "Product + Data",
+          "stakeholderOutcome": "The platform can translate vessel type, port specialization, and route archetype into likely commodity and industry exposure.",
+          "sourceDocs": [
+            "docs/decisions/backlog.md"
+          ],
+          "tasks": [
+            {
+              "id": "shortage-vessel-type-map",
+              "label": "Create vessel-type to commodity-family mappings for container, tanker, LNG, bulk, reefer, chemical, and car-carrier vessels.",
+              "status": "todo",
+              "timeframe": "1-2 days",
+              "notes": "This is static enrichment using current AIS metadata, not a paid data source."
+            },
+            {
+              "id": "shortage-port-specialization-map",
+              "label": "Add port-specialization mappings for energy, chemicals, containers, grain, iron ore, autos, and perishables.",
+              "status": "todo",
+              "timeframe": "1-2 days",
+              "notes": "Start with the ports already covered by the demo and keep confidence labels visible."
+            },
+            {
+              "id": "shortage-route-archetypes",
+              "label": "Define route archetypes such as Asia-to-US electronics lanes, Gulf energy lanes, and Australia iron-ore lanes.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Route archetypes should produce likely exposure, not exact cargo assertions."
+            }
+          ]
+        },
+        {
+          "id": "shortage-risk-artifact",
+          "name": "Risk scoring and explanation artifact",
+          "status": "backlog",
+          "timeframe": "1 week",
+          "owner": "ML + Frontend",
+          "stakeholderOutcome": "The dashboard can show sector risk, confidence, lead time, and reason codes derived from current project data.",
+          "sourceDocs": [
+            "docs/ml/event-intelligence.md",
+            "docs/ml/model-card.md"
+          ],
+          "tasks": [
+            {
+              "id": "shortage-score-contract",
+              "label": "Define a dashboard-ready JSON contract for shortage risk scores, affected sectors, confidence, and reason codes.",
+              "status": "todo",
+              "timeframe": "1-2 days",
+              "notes": "Use the same static artifact pattern as current prediction exports."
+            },
+            {
+              "id": "shortage-reason-codes",
+              "label": "Generate human-readable reason codes from vessel delay, route, port specialization, weather, and event signals.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Explainability is required because the no-cost version is inference-based."
+            },
+            {
+              "id": "shortage-dashboard-surface",
+              "label": "Add a dashboard section for supply-chain exposure that clearly separates risk inference from cargo proof.",
+              "status": "todo",
+              "timeframe": "2-3 days",
+              "notes": "Do not imply exact cargo, importer, SKU, or inventory knowledge."
+            }
+          ]
+        },
+        {
+          "id": "shortage-data-boundary",
+          "name": "Manifest and customs data boundary",
+          "status": "backlog",
+          "timeframe": "Future paid-data decision",
+          "owner": "Founder + Product",
+          "stakeholderOutcome": "The team knows when the product should stay with no-cost inference and when exact cargo intelligence justifies paid or private data.",
+          "sourceDocs": [
+            "docs/decisions/backlog.md"
+          ],
+          "tasks": [
+            {
+              "id": "shortage-no-overclaim-policy",
+              "label": "Document a product policy that no exact vessel cargo, buyer, supplier, SKU, or inventory shortage claims are made without manifest/customs/private data.",
+              "status": "todo",
+              "timeframe": "1 day",
+              "notes": "This keeps stakeholder trust aligned with the limits of AIS and public signals."
+            },
+            {
+              "id": "shortage-paid-data-watchlist",
+              "label": "Create a future evaluation list for manifests, customs data, carrier schedules, commodity prices, and customer inventory feeds.",
+              "status": "todo",
+              "timeframe": "Future",
+              "notes": "Treat these as optional accelerators, not prerequisites for the first market test."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "governance-cost",
       "name": "Governance, Cost, and Admin Controls",
       "status": "doing",
@@ -719,7 +1014,7 @@
           "status": "doing",
           "timeframe": "Current live verification",
           "owner": "Engineering + Finance",
-          "stakeholderOutcome": "The team can choose Vercel or AWS static hosting without increasing data costs or weakening the live data contract.",
+          "stakeholderOutcome": "The team keeps Vercel as the frontend host while AWS remains the data plane.",
           "sourceDocs": [
             "docs/16-dashboard-publishing-architecture.md",
             "docs/20-dual-runtime-implementation.md",
@@ -735,17 +1030,17 @@
             },
             {
               "id": "governance-vercel-hosting-decision",
-              "label": "Confirm whether Vercel remains the frontend host while AWS remains the data plane.",
-              "status": "doing",
-              "timeframe": "Current live verification",
-              "notes": "The dashboard README documents Vercel deployment; the final public hosting choice is under review."
+              "label": "Record Vercel as the frontend host while AWS remains the data plane.",
+              "status": "done",
+              "timeframe": "Done 2026-06-14",
+              "notes": "Vercel hosts the public UI; AWS S3 and CloudFront serve static data artifacts only."
             },
             {
               "id": "governance-cloudfront-hosting-fallback",
-              "label": "Keep S3 and CloudFront as the fallback frontend hosting path if Vercel is not used.",
-              "status": "todo",
-              "timeframe": "Backlog fallback",
-              "notes": "This preserves the AWS-only option without making it the default choice."
+              "label": "Keep S3 and CloudFront out of the frontend hosting path.",
+              "status": "done",
+              "timeframe": "Done 2026-06-14",
+              "notes": "The old CloudFront UI shell was removed; future AWS work should preserve CloudFront as the data CDN unless a new hosting decision is made."
             }
           ]
         },

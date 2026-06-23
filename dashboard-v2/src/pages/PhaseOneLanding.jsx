@@ -6,15 +6,16 @@ import {
   CalendarClock,
   Database,
   LayoutDashboard,
-  Map,
   RadioTower,
   Ship,
   Waves,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import BrandMark from "../components/BrandMark";
 import { useData } from "../context/DataContext";
+
+const CostCalculator = lazy(() => import("../components/CostCalculator"));
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en").format(Number(value) || 0);
@@ -24,24 +25,12 @@ function formatPercent(value) {
   return `${Number(value) || 0}%`;
 }
 
-function parseGeneratedAt(value) {
-  if (!value) return null;
-  const iso = value.includes("UTC") ? value.replace(" UTC", "Z").replace(" ", "T") : value;
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? null : date;
+function hasProviderCoverageIssue(port) {
+  return ['coverage_limited', 'no_provider_messages'].includes(port?.aisDiagnostics?.status);
 }
 
-function snapshotAge(value) {
-  const generated = parseGeneratedAt(value);
-  if (!generated) return "Timestamp unavailable";
-
-  const ageHours = Math.max(0, (Date.now() - generated.getTime()) / 3.6e6);
-  if (ageHours < 1) return `${Math.round(ageHours * 60)} min old`;
-  if (ageHours < 24) return `${Math.round(ageHours)} h old`;
-  return `${Math.round(ageHours / 24)} d old`;
-}
-
-function pressureLabel(metrics, hasSnapshot = true) {
+function pressureLabel(metrics, hasSnapshot = true, port = null) {
+  if (hasProviderCoverageIssue(port)) return "Coverage limited";
   if (!hasSnapshot) return "Covered";
   if ((metrics?.waiting ?? 0) >= 10) return "High pressure";
   if ((metrics?.waiting ?? 0) > 0 || (metrics?.congestionPct ?? 0) >= 50) return "Watch";
@@ -55,20 +44,38 @@ function sourceIcon(name) {
   return "database";
 }
 
-function MetricCard({ label, value, detail, Icon }) {
+function SideNote({ className = "" }) {
   return (
-    <div className="border border-outline-variant/50 bg-surface-container p-5">
+    <aside className={`max-w-2xl border-l border-outline-variant/70 pl-4 text-sm leading-6 text-on-surface-variant ${className}`}>
+      <span className="font-black text-on-surface">Built as a hobby project.</span>{" "}
+      This product is still under development. Live operational data brings
+      cloud, time, and cost requirements, so support from anyone who finds it
+      useful is genuinely appreciated.
+    </aside>
+  );
+}
+
+function SnapshotLinkCard({ to, label, value, detail, Icon, onClick }) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className="group rounded-[6px] border border-outline-variant/50 bg-surface p-3 transition-colors hover:border-primary/60 hover:bg-surface-container"
+    >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
+        <span className="text-[10px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
           {label}
         </span>
-        {Icon ? <Icon className="text-primary" size={20} /> : null}
+        {Icon ? <Icon className="text-primary" size={16} /> : null}
       </div>
-      <div className="mt-4 font-mono text-4xl font-black leading-none text-on-surface">
+      <div className="mt-2 font-mono text-2xl font-black leading-none text-on-surface">
         {value}
       </div>
-      <div className="mt-3 text-sm leading-6 text-on-surface-variant">{detail}</div>
-    </div>
+      <div className="mt-2 flex items-center justify-between gap-2 text-xs leading-4 text-on-surface-variant">
+        <span className="truncate">{detail}</span>
+        <ArrowRight className="shrink-0 text-on-surface-variant group-hover:text-primary" size={14} />
+      </div>
+    </Link>
   );
 }
 
@@ -77,167 +84,164 @@ function ModuleLink({ to, icon, title, detail, onClick }) {
     <Link
       to={to}
       onClick={onClick}
-      className="group flex min-h-28 items-start justify-between gap-4 border border-outline-variant/50 bg-surface p-4 transition-colors hover:border-primary/60 hover:bg-surface-container"
+      className="group flex min-h-14 items-center justify-between gap-3 rounded-[6px] border border-outline-variant/50 bg-surface px-3 py-2 transition-colors hover:border-primary/60 hover:bg-surface-container"
     >
-      <div>
-        <span className="material-symbols-outlined text-[24px] text-primary">{icon}</span>
-        <h3 className="mt-3 font-black text-on-surface">{title}</h3>
-        <p className="mt-2 text-sm leading-6 text-on-surface-variant">{detail}</p>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="material-symbols-outlined shrink-0 text-[20px] text-primary">{icon}</span>
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-black text-on-surface">{title}</h3>
+          <p className="truncate text-xs leading-4 text-on-surface-variant">{detail}</p>
+        </div>
       </div>
-      <ArrowRight className="mt-1 shrink-0 text-on-surface-variant group-hover:text-primary" size={18} />
+      <ArrowRight className="shrink-0 text-on-surface-variant group-hover:text-primary" size={15} />
     </Link>
   );
 }
 
 function PortSelector({ ports, selectedCode, onSelect }) {
   return (
-    <div className="grid grid-cols-3 border border-outline-variant/50 bg-surface max-lg:grid-cols-2 max-sm:grid-cols-1">
-      {ports.map((portInfo) => {
-        const metrics = portInfo.metrics ?? {};
-        const isSelected = portInfo.code === selectedCode;
+    <div className="overflow-hidden rounded-[6px] border border-outline-variant/50 bg-surface">
+      <div className="flex items-center justify-between gap-3 border-b border-outline-variant/40 px-3 py-1.5">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
+            Port selection
+          </div>
+          <div className="mt-0.5 text-[10px] text-on-surface-variant">Choose one snapshot</div>
+        </div>
+        <span className="rounded-[6px] border border-outline-variant/50 px-2 py-1 font-mono text-[10px] text-on-surface-variant">
+          {formatNumber(ports.length)}
+        </span>
+      </div>
 
-        return (
-          <button
-            key={portInfo.code}
-            type="button"
-            onClick={() => onSelect(portInfo.code)}
-            className={`min-h-28 border-b border-r border-outline-variant/30 p-4 text-left transition-colors ${
-              isSelected
-                ? "bg-primary-container text-on-primary-container"
-                : "bg-surface text-on-surface hover:bg-surface-container"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-mono text-sm font-black">{portInfo.code}</span>
-              <span className="font-mono text-xs uppercase">
-                {pressureLabel(metrics, portInfo.hasSnapshot)}
+      <div className="divide-y divide-outline-variant/30">
+        {ports.map((portInfo) => {
+          const metrics = portInfo.metrics ?? {};
+          const isSelected = portInfo.code === selectedCode;
+          const providerCoverageIssue = hasProviderCoverageIssue(portInfo);
+
+          return (
+            <button
+              key={portInfo.code}
+              type="button"
+              onClick={() => onSelect(portInfo.code)}
+              className={`group grid w-full grid-cols-[4px_minmax(0,1fr)_auto] items-center gap-2.5 px-0 py-0 text-left transition-colors ${
+                isSelected
+                  ? "bg-primary-container text-on-primary-container"
+                  : "bg-surface text-on-surface hover:bg-surface-container"
+              }`}
+            >
+              <span className={`h-full min-h-10 ${isSelected ? "bg-primary" : "bg-transparent"}`} />
+              <span className="min-w-0 py-1">
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-[11px] font-black uppercase">{portInfo.code}</span>
+                  <span className="truncate text-xs font-black leading-4">{portInfo.name}</span>
+                </span>
+                <span className="block truncate text-[10px] opacity-75">
+                  {providerCoverageIssue
+                    ? "No AIS messages received from provider"
+                    : `${formatNumber(metrics.tracked)} tracked · ${formatNumber(metrics.waiting)} waiting`}
+                </span>
               </span>
-            </div>
-            <div className="mt-3 font-black">{portInfo.name}</div>
-            <div className="mt-2 text-xs opacity-75">
-              {formatNumber(metrics.tracked)} tracked · {formatNumber(metrics.waiting)} waiting
-            </div>
-          </button>
-        );
-      })}
+              <span className="flex items-center gap-2 pr-3">
+                <span className="text-right font-mono text-[10px] uppercase opacity-80">
+                  {pressureLabel(metrics, portInfo.hasSnapshot, portInfo)}
+                </span>
+                <ArrowRight
+                  className={`shrink-0 transition-colors ${
+                    isSelected ? "text-on-primary-container" : "text-on-surface-variant group-hover:text-primary"
+                  }`}
+                  size={13}
+                />
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function VesselList({ vessels, onNavigate }) {
-  if (!vessels.length) {
-    return (
-      <div className="border border-outline-variant/50 bg-surface p-6">
-        <div className="flex items-center gap-3">
-          <Ship className="text-primary" size={21} />
-          <h3 className="font-black text-on-surface">Vessel traffic</h3>
-        </div>
-        <p className="mt-3 text-sm leading-6 text-on-surface-variant">
-          No vessels are surfaced in the selected port snapshot.
-        </p>
-        <Link
-          to="/map"
-          onClick={onNavigate}
-          className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 border border-primary/60 px-4 text-xs font-black uppercase tracking-[0.08em] text-primary hover:bg-primary/10"
-        >
-          Open traffic map
-          <ArrowRight size={15} />
-        </Link>
-      </div>
-    );
-  }
-
+function CompactInfoTile({ label, value, detail, Icon }) {
   return (
-    <div className="border border-outline-variant/50 bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-outline-variant/40 px-4 py-4">
-        <div className="flex items-center gap-3">
-          <Ship className="text-primary" size={21} />
-          <h3 className="font-black text-on-surface">Vessels to watch</h3>
-        </div>
-        <Link to="/map" onClick={onNavigate} className="font-mono text-xs uppercase text-primary">
-          Map
-        </Link>
+    <div className="rounded-[6px] border border-outline-variant/50 bg-surface px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[10px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
+          {label}
+        </span>
+        {Icon ? <Icon className="text-primary" size={16} /> : null}
       </div>
-      {vessels.slice(0, 5).map((vessel) => (
-        <Link
-          key={`${vessel.mmsi ?? vessel.name}-${vessel.zone}`}
-          to="/map"
-          onClick={onNavigate}
-          className="grid grid-cols-[minmax(0,1fr)_80px_80px] gap-3 border-t border-outline-variant/30 px-4 py-3 first:border-t-0 hover:bg-surface-container max-sm:grid-cols-2"
-        >
-          <div>
-            <div className="truncate font-mono text-sm font-black text-on-surface">{vessel.name}</div>
-            <div className="font-mono text-xs uppercase text-on-surface-variant">{vessel.zone}</div>
-          </div>
-          <div className="font-mono text-sm text-on-surface max-sm:text-right">{vessel.sog} kts</div>
-          <div className="text-right font-mono text-sm text-primary max-sm:col-span-2 max-sm:text-left">
-            {vessel.eta || "--:--"} est.
-          </div>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function TerminalList({ terminals, onNavigate }) {
-  return (
-    <div className="border border-outline-variant/50 bg-surface">
-      <div className="flex items-center justify-between gap-3 border-b border-outline-variant/40 px-4 py-4">
-        <div className="flex items-center gap-3">
-          <Anchor className="text-secondary" size={21} />
-          <h3 className="font-black text-on-surface">Terminals and berths</h3>
-        </div>
-        <Link to="/berth" onClick={onNavigate} className="font-mono text-xs uppercase text-primary">
-          Berths
-        </Link>
+      <div className="mt-2 font-mono text-xl font-black leading-tight text-on-surface">
+        {value}
       </div>
-      {terminals.length === 0 ? (
-        <div className="px-4 py-6 text-sm leading-6 text-on-surface-variant">
-          Terminal detail is not published for this port in the current operating snapshot.
-        </div>
-      ) : null}
-      {terminals.slice(0, 6).map((terminal) => (
-        <Link
-          key={terminal.id}
-          to="/berth"
-          onClick={onNavigate}
-          className="flex items-center justify-between gap-4 border-t border-outline-variant/30 px-4 py-3 first:border-t-0 hover:bg-surface-container"
-        >
-          <div>
-            <div className="font-black text-on-surface">{terminal.name}</div>
-            <div className="text-xs text-on-surface-variant">
-              {terminal.vessel ? terminal.vessel : "No vessel assigned"}
-            </div>
-          </div>
-          <span className="font-mono text-xs uppercase text-secondary">{terminal.status}</span>
-        </Link>
-      ))}
+      <p className="mt-1 text-xs leading-4 text-on-surface-variant">{detail}</p>
     </div>
   );
 }
 
 function SourceRow({ source }) {
   return (
-    <div className="border-t border-outline-variant/30 px-4 py-3 first:border-t-0">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-[18px] text-primary">
-            {sourceIcon(source.name)}
-          </span>
-          <div className="font-black text-on-surface">{source.name}</div>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 border-t border-outline-variant/30 px-3 py-2.5 first:border-t-0">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="material-symbols-outlined shrink-0 text-[17px] text-primary">
+          {sourceIcon(source.name)}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-black text-on-surface">{source.name}</div>
+          <div className="truncate text-xs text-on-surface-variant">{source.detail}</div>
         </div>
-        <div className="font-mono text-xs uppercase text-secondary">{source.status}</div>
       </div>
-      <div className="mt-1 text-sm leading-6 text-on-surface-variant">{source.detail}</div>
-      <div className="mt-2 font-mono text-xs text-on-surface-variant">
-        Freshness: {source.freshness}
+      <div className="text-right">
+        <div className="font-mono text-[11px] uppercase text-secondary">{source.status}</div>
+        <div className="mt-1 font-mono text-[11px] text-on-surface-variant">{source.freshness}</div>
       </div>
     </div>
   );
 }
 
+function CostExplorerFallback() {
+  return (
+    <div className="flex min-h-64 items-center justify-center rounded-[6px] border border-outline-variant/50 bg-surface-container text-sm text-on-surface-variant">
+      Loading impact explorer...
+    </div>
+  );
+}
+
+function DelayImpactPanel() {
+  return (
+    <aside className="rounded-[6px] border border-outline-variant bg-surface-container p-5">
+      <div className="mb-5">
+        <div className="text-[11px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
+          Delay impact explorer
+        </div>
+        <h2 className="mt-2 text-2xl font-black leading-tight text-on-surface">
+          Model the cost of waiting time.
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-on-surface-variant">
+          Estimate how vessel scale, demurrage, and storage fees can compound
+          when congestion holds cargo in the wrong place.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+        <CompactInfoTile
+          label="Vessel wait"
+          value="$20k-$100k+"
+          detail="Typical daily exposure."
+          Icon={BarChart3}
+        />
+        <CompactInfoTile
+          label="Container fees"
+          value="$50-$300+"
+          detail="Daily fee range."
+          Icon={CalendarClock}
+        />
+      </div>
+    </aside>
+  );
+}
+
 export default function PhaseOneLanding() {
-  const { ports, currentPortCode, setCurrentPortCode, metadata, sources } = useData();
+  const { ports, currentPortCode, setCurrentPortCode, sources } = useData();
   const [selectedCode, setSelectedCode] = useState(currentPortCode);
 
   const portRows = useMemo(
@@ -255,34 +259,10 @@ export default function PhaseOneLanding() {
     [ports]
   );
 
-  useEffect(() => {
-    if (!selectedCode && currentPortCode) setSelectedCode(currentPortCode);
-  }, [currentPortCode, selectedCode]);
-
-  const selectedPort = ports[selectedCode] ?? portRows[0] ?? null;
+  const effectiveSelectedCode = selectedCode ?? currentPortCode;
+  const selectedPort = ports[effectiveSelectedCode] ?? portRows[0] ?? null;
   const selectedMetrics = selectedPort?.metrics ?? {};
-
-  const snapshot = useMemo(() => {
-    const totalTracked = portRows.reduce(
-      (total, portInfo) => total + (portInfo.metrics?.tracked ?? 0),
-      0
-    );
-    const totalWaiting = portRows.reduce(
-      (total, portInfo) => total + (portInfo.metrics?.waiting ?? 0),
-      0
-    );
-    const terminalCount = portRows.reduce(
-      (total, portInfo) => total + (portInfo.berthAllocations?.length ?? 0),
-      0
-    );
-    const vesselCount = portRows.reduce(
-      (total, portInfo) => total + (portInfo.vesselsTotal ?? portInfo.vessels?.length ?? 0),
-      0
-    );
-    const activeSources = sources.filter((source) => source.status === "active").length;
-
-    return { activeSources, terminalCount, totalTracked, totalWaiting, vesselCount };
-  }, [portRows, sources]);
+  const selectedProviderCoverageIssue = hasProviderCoverageIssue(selectedPort);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -307,7 +287,7 @@ export default function PhaseOneLanding() {
       <header className="border-b border-outline-variant/50 bg-surface">
         <div className="mx-auto flex h-16 w-[min(1180px,calc(100%_-_32px))] items-center justify-between gap-4">
           <a href="#top" className="flex min-w-0 items-center gap-3" aria-label="Data Party Logistics">
-            <BrandMark className="h-10 w-10" alt="Data Party Logistics logo" />
+            <BrandMark alt="Data Party Logistics logo" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-black uppercase tracking-[0.08em]">
                 Data Party Logistics
@@ -319,28 +299,25 @@ export default function PhaseOneLanding() {
           </a>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
-            <a href="#ports" className="px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface">
-              Ports
-            </a>
-            <a href="#operations" className="px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface">
-              Operations
-            </a>
-            <a href="#sources" className="px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface">
-              Sources
-            </a>
+            <Link to="/dashboard/map" className="px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface">
+              Vessel traffic
+            </Link>
+            <Link to="/docs" className="px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface">
+              Docs
+            </Link>
             <Link
-              to="/"
+              to="/dashboard"
               onClick={navigateWithSelectedPort}
-              className="ml-2 border border-primary/60 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-primary hover:bg-primary/10"
+              className="ml-2 rounded-[6px] border border-primary/60 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-primary hover:bg-primary/10"
             >
               Open platform
             </Link>
           </nav>
 
           <Link
-            to="/"
+            to="/dashboard"
             onClick={navigateWithSelectedPort}
-            className="border border-primary/60 px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-primary hover:bg-primary/10 md:hidden"
+            className="rounded-[6px] border border-primary/60 px-3 py-2 text-[11px] font-black uppercase tracking-[0.08em] text-primary hover:bg-primary/10 md:hidden"
           >
             Platform
           </Link>
@@ -348,244 +325,244 @@ export default function PhaseOneLanding() {
       </header>
 
       <main id="top">
-        <section className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] grid-cols-[minmax(0,1fr)_390px] gap-8 py-16 max-lg:grid-cols-1 max-sm:py-10">
+        <section className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] grid-cols-[minmax(0,1fr)_430px] gap-8 py-12 max-lg:grid-cols-1 max-sm:py-10">
           <div>
-            <h1 className="max-w-4xl text-[clamp(42px,6vw,78px)] font-black leading-[0.96] tracking-normal">
-              Know which ports need attention before exceptions become escalations.
+            <div className="mb-4 inline-flex rounded-[6px] border border-outline-variant/60 bg-surface px-3 py-1.5 font-mono text-[10px] font-black uppercase tracking-[0.08em] text-secondary">
+              Snapshot based port operations
+            </div>
+            <h1 className="max-w-4xl text-[clamp(36px,5.4vw,72px)] font-black leading-[1.01] tracking-normal">
+              Know port pressure. Open the right view.
             </h1>
 
             <p className="mt-5 max-w-2xl text-lg leading-8 text-on-surface-variant">
-              DPL turns vessel traffic, terminal availability, weather, and freshness
-              signals into a focused operating view for maritime stakeholders.
+              DPL turns vessel traffic, berth coverage, weather, and freshness
+              signals into a focused operating view for maritime decisions.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                to="/"
+                to="/dashboard"
                 onClick={navigateWithSelectedPort}
-                className="inline-flex min-h-12 items-center justify-center gap-2 border border-primary bg-primary px-5 text-xs font-black uppercase tracking-[0.08em] text-[#101b30]"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[6px] border border-primary bg-primary px-5 text-xs font-black uppercase tracking-[0.08em] text-[#101b30]"
               >
-                Open command view
+                Open platform
                 <LayoutDashboard size={16} strokeWidth={2.2} />
               </Link>
               <Link
-                to="/map"
+                to="/dashboard/map"
                 onClick={navigateWithSelectedPort}
-                className="inline-flex min-h-12 items-center justify-center gap-2 border border-outline-variant/70 bg-surface-container px-5 text-xs font-black uppercase tracking-[0.08em] text-on-surface hover:bg-surface-variant"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[6px] border border-outline-variant/70 bg-surface px-5 text-xs font-black uppercase tracking-[0.08em] text-on-surface hover:bg-surface-container"
               >
-                Vessel traffic
+                Vessel map
                 <ArrowRight size={16} strokeWidth={2.2} />
               </Link>
             </div>
           </div>
 
-          <aside className="border border-outline-variant bg-surface-container p-5">
-            <div className="mb-5 flex items-center gap-3">
-              <BrandMark className="h-11 w-11" alt="" />
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
-                  Latest operating snapshot
-                </div>
-                <div className="mt-1 font-mono text-sm text-secondary">
-                  {metadata?.generatedAt ?? "Loading"}
-                </div>
-                <div className="mt-1 font-mono text-xs text-on-surface-variant">
-                  {snapshotAge(metadata?.generatedAt)}
-                </div>
-              </div>
-            </div>
+          <DelayImpactPanel />
 
-            <div className="grid gap-3">
-              <MetricCard
-                label="Ports monitored"
-                value={formatNumber(portRows.length)}
-                detail={`${formatNumber(snapshot.terminalCount)} terminals and berths in view`}
-                Icon={Map}
-              />
-              <MetricCard
-                label="Traffic signal"
-                value={snapshot.vesselCount > 0 ? formatNumber(snapshot.vesselCount) : "Quiet"}
-                detail={
-                  snapshot.vesselCount > 0
-                    ? `${formatNumber(snapshot.totalWaiting)} waiting at anchor across monitored ports`
-                    : "No vessel positions surfaced in the current snapshot"
-                }
-                Icon={Ship}
-              />
-              <MetricCard
-                label="Live sources"
-                value={`${formatNumber(snapshot.activeSources)}/${formatNumber(sources.length)}`}
-                detail="AIS, weather, and operational reference signals"
-                Icon={Database}
-              />
-            </div>
-          </aside>
+          <SideNote className="lg:col-start-1 lg:row-start-2 lg:-mt-5" />
+        </section>
+
+        <section id="impact" className="border-t border-outline-variant/40 bg-surface">
+          <div className="mx-auto w-[min(980px,calc(100%_-_32px))] py-7">
+            <Suspense fallback={<CostExplorerFallback />}>
+              <CostCalculator />
+            </Suspense>
+          </div>
         </section>
 
         <section id="ports" className="border-t border-outline-variant/40">
-          <div className="mx-auto w-[min(1180px,calc(100%_-_32px))] py-12">
-            <div className="mb-6 flex items-end justify-between gap-6 max-lg:flex-col max-lg:items-start">
+          <div className="mx-auto w-[min(1180px,calc(100%_-_32px))] py-8">
+            <div className="mb-4 flex items-end justify-between gap-6 max-lg:flex-col max-lg:items-start">
               <div>
-                <h2 className="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-normal">
-                  Port coverage and current pressure
+                <h2 className="text-[clamp(28px,3.4vw,38px)] font-black leading-tight tracking-normal">
+                  Port snapshots
                 </h2>
-                <p className="mt-3 max-w-2xl leading-7 text-on-surface-variant">
-                  Select a port to update the operating summary, vessel panel, terminal list, and dashboard links.
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
+                  Select a port for a fast read, then jump into the right dashboard view for detail.
                 </p>
               </div>
               {selectedPort ? (
-                <div className="border border-outline-variant/50 bg-surface px-4 py-3">
-                  <div className="font-mono text-xs uppercase text-on-surface-variant">Selected port</div>
-                  <div className="mt-1 font-black">{selectedPort.name} · {selectedPort.code}</div>
+                <div className="rounded-[6px] border border-outline-variant/50 bg-surface px-3 py-2">
+                  <div className="font-mono text-[10px] uppercase text-on-surface-variant">Selected port</div>
+                  <div className="mt-0.5 text-sm font-black">{selectedPort.name} · {selectedPort.code}</div>
                 </div>
               ) : null}
             </div>
 
-            <PortSelector ports={portRows} selectedCode={selectedPort?.code} onSelect={selectPort} />
+            <div className="grid grid-cols-[minmax(300px,380px)_minmax(0,1fr)] items-start gap-4 max-lg:grid-cols-1">
+              <PortSelector ports={portRows} selectedCode={selectedPort?.code} onSelect={selectPort} />
+
+              {selectedPort ? (
+                <div id="operations" className="rounded-[6px] border border-outline-variant/50 bg-surface-container p-4">
+                  <div className="mb-3 flex items-start justify-between gap-4 max-sm:flex-col">
+                    <div className="flex items-center gap-3">
+                      <RadioTower className="text-primary" size={20} />
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
+                          Port operating overview
+                        </div>
+                        <h2 className="mt-0.5 text-[clamp(24px,3vw,34px)] font-black leading-tight tracking-normal">
+                          {selectedPort.name}
+                        </h2>
+                      </div>
+                    </div>
+                    <Link
+                      to="/dashboard"
+                      onClick={navigateWithSelectedPort}
+                      className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-[6px] border border-primary/60 px-3 text-[11px] font-black uppercase tracking-[0.08em] text-primary hover:bg-primary/10"
+                    >
+                      Full dashboard
+                      <ArrowRight size={14} />
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
+                    <SnapshotLinkCard
+                      to="/dashboard/insights"
+                      onClick={navigateWithSelectedPort}
+                      label="Congestion"
+                      value={
+                        selectedPort.hasSnapshot === false
+                          ? "No snapshot"
+                          : formatPercent(selectedMetrics.congestionPct)
+                      }
+                      detail={pressureLabel(selectedMetrics, selectedPort.hasSnapshot, selectedPort)}
+                      Icon={Activity}
+                    />
+                    <SnapshotLinkCard
+                      to="/dashboard/map"
+                      onClick={navigateWithSelectedPort}
+                      label="Active"
+                      value={selectedProviderCoverageIssue ? "--" : formatNumber(selectedMetrics.tracked)}
+                      detail={
+                        selectedProviderCoverageIssue
+                          ? "Provider coverage limited"
+                          : selectedPort.hasSnapshot === false
+                          ? "Awaiting AIS traffic"
+                          : "Traffic map"
+                      }
+                      Icon={Ship}
+                    />
+                    <SnapshotLinkCard
+                      to="/dashboard/schedule"
+                      onClick={navigateWithSelectedPort}
+                      label="Waiting"
+                      value={formatNumber(selectedMetrics.waiting)}
+                      detail="Schedule"
+                      Icon={Anchor}
+                    />
+                    <SnapshotLinkCard
+                      to="/dashboard/berth"
+                      onClick={navigateWithSelectedPort}
+                      label="Berths"
+                      value={formatNumber(selectedPort.berthAllocations?.length ?? 0)}
+                      detail="Terminal view"
+                      Icon={Waves}
+                    />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 border-t border-outline-variant/40 pt-3 max-sm:grid-cols-1">
+                    <CompactInfoTile
+                      label="Vessels"
+                      value={
+                        selectedProviderCoverageIssue
+                          ? "--"
+                          : formatNumber(selectedPort.vesselsTotal ?? selectedPort.vessels?.length ?? 0)
+                      }
+                      detail={
+                        selectedProviderCoverageIssue
+                          ? "No AIS messages received from provider."
+                          : "Total surfaced in snapshot."
+                      }
+                      Icon={Ship}
+                    />
+                    <CompactInfoTile
+                      label="Avg speed"
+                      value={`${Number(selectedMetrics.avgSpeed ?? 0).toFixed(1)} kts`}
+                      detail="Movement signal."
+                      Icon={Activity}
+                    />
+                    <CompactInfoTile
+                      label="Max wave"
+                      value={`${Number(selectedMetrics.maxWave ?? 0).toFixed(1)} m`}
+                      detail="Marine condition."
+                      Icon={Waves}
+                    />
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-outline-variant/40 pt-3 max-sm:grid-cols-1">
+                    <ModuleLink
+                      to="/dashboard"
+                      onClick={navigateWithSelectedPort}
+                      icon="dashboard"
+                      title="Dashboard"
+                      detail="Snapshot, freshness, status."
+                    />
+                    <ModuleLink
+                      to="/dashboard/map"
+                      onClick={navigateWithSelectedPort}
+                      icon="directions_boat"
+                      title="Vessel traffic"
+                      detail="Positions, speed, ETA."
+                    />
+                    <ModuleLink
+                      to="/dashboard/schedule"
+                      onClick={navigateWithSelectedPort}
+                      icon="schedule"
+                      title="Arrival schedule"
+                      detail="Waiting and inbound timing."
+                    />
+                    <ModuleLink
+                      to="/dashboard/berth"
+                      onClick={navigateWithSelectedPort}
+                      icon="calendar_view_day"
+                      title="Berths"
+                      detail="Berth allocation detail."
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
 
-        {selectedPort ? (
-          <section id="operations" className="border-t border-outline-variant/40">
-            <div className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] grid-cols-[minmax(0,1fr)_390px] gap-6 py-12 max-lg:grid-cols-1">
-              <div>
-                <div className="mb-4 flex items-center gap-3">
-                  <RadioTower className="text-primary" size={24} />
-                  <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.08em] text-on-surface-variant">
-                      Port operating view
-                    </div>
-                    <h2 className="mt-1 text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-normal">
-                      {selectedPort.name}
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
-                  <MetricCard
-                    label="Pressure"
-                    value={pressureLabel(selectedMetrics, selectedPort.hasSnapshot)}
-                    detail={
-                      selectedPort.hasSnapshot === false
-                        ? "Coverage is configured; operational metrics are not in this snapshot"
-                        : `${formatPercent(selectedMetrics.congestionPct)} congestion signal`
-                    }
-                    Icon={Activity}
-                  />
-                  <MetricCard
-                    label="Tracked"
-                    value={formatNumber(selectedMetrics.tracked)}
-                    detail={
-                      selectedPort.hasSnapshot === false
-                        ? "Awaiting the latest AIS traffic snapshot"
-                        : "Active vessels in the current snapshot"
-                    }
-                    Icon={Ship}
-                  />
-                  <MetricCard
-                    label="Waiting"
-                    value={formatNumber(selectedMetrics.waiting)}
-                    detail="Vessels at anchor or queue positions"
-                    Icon={Anchor}
-                  />
-                  <MetricCard
-                    label="Max wave"
-                    value={`${Number(selectedMetrics.maxWave ?? 0).toFixed(1)} m`}
-                    detail={`${Number(selectedMetrics.avgSpeed ?? 0).toFixed(1)} kts average speed`}
-                    Icon={Waves}
-                  />
-                </div>
-
-                <div className="mt-6 grid grid-cols-2 gap-4 max-md:grid-cols-1">
-                  <ModuleLink
-                    to="/"
-                    onClick={navigateWithSelectedPort}
-                    icon="dashboard"
-                    title="Executive dashboard"
-                    detail="Summary metrics, freshness, and port-level operating status."
-                  />
-                  <ModuleLink
-                    to="/map"
-                    onClick={navigateWithSelectedPort}
-                    icon="directions_boat"
-                    title="Vessel traffic"
-                    detail="Active vessel positions, speed, distance, ETA, and confidence."
-                  />
-                  <ModuleLink
-                    to="/schedule"
-                    onClick={navigateWithSelectedPort}
-                    icon="schedule"
-                    title="Arrival schedule"
-                    detail="Approaching and in-transit vessel timing for operations planning."
-                  />
-                  <ModuleLink
-                    to="/berth"
-                    onClick={navigateWithSelectedPort}
-                    icon="calendar_view_day"
-                    title="Terminal berths"
-                    detail="Terminal availability and berth allocation for the selected port."
-                  />
-                  <ModuleLink
-                    to="/insights"
-                    onClick={navigateWithSelectedPort}
-                    icon="analytics"
-                    title="Congestion insights"
-                    detail="Trend context and operating pressure signals for stakeholder review."
-                  />
-                  <ModuleLink
-                    to="/predictive"
-                    onClick={navigateWithSelectedPort}
-                    icon="query_stats"
-                    title="Predictive outlook"
-                    detail="Forward-looking risk indicators for proactive customer communication."
-                  />
-                </div>
-              </div>
-
-              <div className="grid content-start gap-4">
-                <VesselList vessels={selectedPort.vessels ?? []} onNavigate={navigateWithSelectedPort} />
-                <TerminalList terminals={selectedPort.berthAllocations ?? []} onNavigate={navigateWithSelectedPort} />
-              </div>
-            </div>
-          </section>
-        ) : null}
-
         <section id="sources" className="border-t border-outline-variant/40">
-          <div className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] grid-cols-[minmax(0,1fr)_430px] gap-6 py-12 max-lg:grid-cols-1">
+          <div className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] grid-cols-[minmax(0,1fr)_390px] gap-4 py-8 max-lg:grid-cols-1">
             <div>
-              <h2 className="max-w-2xl text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-normal">
-                Built for credible decisions, not decorative screens.
+              <h2 className="max-w-2xl text-[clamp(24px,3vw,34px)] font-black leading-tight tracking-normal">
+                Simple operating flow.
               </h2>
-              <p className="mt-4 max-w-2xl leading-7 text-on-surface-variant">
-                Every homepage number reflects the current operating snapshot used across
-                the platform. If a port has no surfaced queue or vessel traffic, the page
-                shows that directly.
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
+                Pick a port, check pressure, then open the exact dashboard view
+                needed for the next decision.
               </p>
-              <div className="mt-6 grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-                <MetricCard
+              <div className="mt-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                <CompactInfoTile
                   label="Decision path"
                   value="Port → Vessel → Terminal"
-                  detail="Stakeholders can move from network-level pressure to specific operational screens."
+                  detail="Move from pressure to the operational page."
                   Icon={BarChart3}
                 />
-                <MetricCard
+                <CompactInfoTile
                   label="Planning window"
                   value="Now"
-                  detail="Snapshot-based operating status with freshness visible at the top of the page."
+                  detail="Freshness is visible before action."
                   Icon={CalendarClock}
                 />
               </div>
             </div>
 
-            <article className="border border-outline-variant/50 bg-surface">
-              <div className="flex items-center gap-3 border-b border-outline-variant/40 px-4 py-4">
-                <Database className="text-primary" size={21} />
-                <h2 className="text-xl font-black tracking-normal">Signal sources</h2>
+            <article className="overflow-hidden rounded-[6px] border border-outline-variant/50 bg-surface">
+              <div className="flex items-center gap-2 border-b border-outline-variant/40 px-3 py-3">
+                <Database className="text-primary" size={18} />
+                <h2 className="text-base font-black tracking-normal">Signal sources</h2>
               </div>
               {sources.length > 0 ? (
                 sources.map((source) => <SourceRow key={source.name} source={source} />)
               ) : (
-                <div className="px-4 py-6 text-sm text-on-surface-variant">
+                <div className="px-3 py-4 text-sm text-on-surface-variant">
                   Source metadata is unavailable for the current operating snapshot.
                 </div>
               )}

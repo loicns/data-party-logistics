@@ -47,6 +47,8 @@ function compareRows(left, right, sortBy) {
 export default function ArrivalDepartureSchedule() {
   const { port } = useData();
   const vessels = useMemo(() => port?.vessels ?? [], [port?.vessels]);
+  const metrics = port?.metrics ?? {};
+  const totalTracked = port?.vesselsTotal ?? metrics.tracked ?? vessels.length;
   const [search, setSearch] = useState('');
   const [zoneFilter, setZoneFilter] = useState('all');
   const [movementFilter, setMovementFilter] = useState('all');
@@ -59,6 +61,9 @@ export default function ArrivalDepartureSchedule() {
     }, {}),
     [vessels]
   );
+  const waitingCount = metrics.waiting ?? zoneCounts.anchor ?? 0;
+  const berthedCount = metrics.berthed ?? zoneCounts.berth ?? 0;
+  const inboundCount = Math.max(totalTracked - waitingCount - berthedCount, 0);
 
   const filteredVessels = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
@@ -82,20 +87,20 @@ export default function ArrivalDepartureSchedule() {
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-surface-container border border-outline-variant/50 rounded-xl p-3">
-            <div className="font-label-caps text-label-caps text-on-surface-variant">All Surfaced</div>
-            <div className="font-display-md text-display-md text-on-surface mt-1">{vessels.length}</div>
+            <div className="font-label-caps text-label-caps text-on-surface-variant">All Tracked</div>
+            <div className="font-display-md text-display-md text-on-surface mt-1">{totalTracked}</div>
           </div>
           <div className="bg-surface-container border border-outline-variant/50 rounded-xl p-3">
             <div className="font-label-caps text-label-caps text-on-surface-variant">At Anchor</div>
-            <div className="font-display-md text-display-md text-[#f7b23b] mt-1">{zoneCounts.anchor || 0}</div>
+            <div className="font-display-md text-display-md text-[#f7b23b] mt-1">{waitingCount}</div>
           </div>
           <div className="bg-surface-container border border-outline-variant/50 rounded-xl p-3">
             <div className="font-label-caps text-label-caps text-on-surface-variant">Inbound</div>
-            <div className="font-display-md text-display-md text-primary mt-1">{(zoneCounts.approaching || 0) + (zoneCounts.transit || 0)}</div>
+            <div className="font-display-md text-display-md text-primary mt-1">{inboundCount}</div>
           </div>
           <div className="bg-surface-container border border-outline-variant/50 rounded-xl p-3">
             <div className="font-label-caps text-label-caps text-on-surface-variant">Berthed</div>
-            <div className="font-display-md text-display-md text-[#2dd96f] mt-1">{zoneCounts.berth || 0}</div>
+            <div className="font-display-md text-display-md text-[#2dd96f] mt-1">{berthedCount}</div>
           </div>
         </div>
 
@@ -197,7 +202,7 @@ export default function ArrivalDepartureSchedule() {
           </table>
         </div>
         <div className="border-t border-outline-variant/50 bg-surface-container-low p-3 flex justify-between items-center text-on-surface-variant font-body-sm text-body-sm mt-auto">
-          <div>Showing {filteredVessels.length} of {vessels.length} vessels around {port?.name}</div>
+          <div>Showing {filteredVessels.length} of {vessels.length} surfaced rows around {port?.name} · {totalTracked} tracked total</div>
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ const CongestionInsights = lazy(() => import("./pages/CongestionInsights"));
 const PredictiveAnalysis = lazy(() => import("./pages/PredictiveAnalysis"));
 const RoadmapDashboard = lazy(() => import("./pages/RoadmapDashboard"));
 const PhaseOneLanding = lazy(() => import("./pages/PhaseOneLanding"));
+const DocsViewer = lazy(() => import("./pages/DocsViewer"));
 
 function PageFallback() {
   return (
@@ -33,6 +34,10 @@ export default function App() {
       <Routes>
         <Route path="/" element={lazyRoute(PhaseOneLanding)} />
         <Route path="/phase-1" element={<Navigate to="/" replace />} />
+
+        {/* Documentation Viewer */}
+        <Route path="/docs" element={lazyRoute(DocsViewer)} />
+        <Route path="/docs/:docId" element={lazyRoute(DocsViewer)} />
 
         {/* Isolated Roadmap Dashboard Route */}
         <Route path="/roadmap" element={<Navigate to="/roadmap/overview" replace />} />

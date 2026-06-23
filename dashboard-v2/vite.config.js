@@ -7,6 +7,16 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:8000',
+      '/live-data.json': {
+        target: 'https://dz4lgcial54jx.cloudfront.net',
+        changeOrigin: true,
+        rewrite: () => '/demo-data.json',
+      },
+      '/live-data.js': {
+        target: 'https://dz4lgcial54jx.cloudfront.net',
+        changeOrigin: true,
+        rewrite: () => '/demo-data.js',
+      },
     },
   },
 })

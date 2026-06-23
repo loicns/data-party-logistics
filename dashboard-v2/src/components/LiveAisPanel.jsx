@@ -19,10 +19,15 @@ export default function LiveAisPanel({ enabled, onToggle, status, vesselCount, a
   const [keyDraft, setKeyDraft] = useState('');
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.disconnected;
 
-  // Hydrate from localStorage on mount
+  // Hydrate from localStorage or Production Env Var on mount
   useEffect(() => {
+    const prodKey = import.meta.env.VITE_AISSTREAM_API_KEY;
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+
+    if (prodKey) {
+      onApiKeyChange(prodKey);
+      setKeyDraft(prodKey);
+    } else if (stored) {
       onApiKeyChange(stored);
       setKeyDraft(stored);
     }
@@ -82,14 +87,16 @@ export default function LiveAisPanel({ enabled, onToggle, status, vesselCount, a
           />
         </button>
 
-        {/* Settings gear */}
-        <button
-          onClick={() => setShowKeyInput((s) => !s)}
-          className="text-on-surface-variant hover:text-on-surface transition-colors"
-          title="API Key settings"
-        >
-          <span className="material-symbols-outlined text-[18px]">settings</span>
-        </button>
+        {/* Settings gear - Hidden if using a hardcoded prod key */}
+        {!import.meta.env.VITE_AISSTREAM_API_KEY && (
+          <button
+            onClick={() => setShowKeyInput((s) => !s)}
+            className="text-on-surface-variant hover:text-on-surface transition-colors"
+            title="API Key settings"
+          >
+            <span className="material-symbols-outlined text-[18px]">settings</span>
+          </button>
+        )}
       </div>
 
       {/* ── API key input dropdown ────────────────────────────────────── */}

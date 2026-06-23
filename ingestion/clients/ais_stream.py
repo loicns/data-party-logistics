@@ -1,7 +1,7 @@
 """AIS stream ingestion client.
 
 Connects to AISStream.io via WebSocket, subscribes to vessel position
-reports for all maritime ports in UN LOCODE, validates with Pydantic,
+reports for configured pilot ports, validates with Pydantic,
 and writes NDJSON batches to S3 every FLUSH_INTERVAL_SEC seconds.
 
 ARCHITECTURE ROLE:
@@ -34,6 +34,7 @@ from pydantic import (
     BaseModel,
     Field,
 )
+from serverless.ports import PORTS
 
 from ingestion.config import settings
 from ingestion.port_loader import load_port_bboxes
@@ -54,8 +55,10 @@ SOURCE_NAME = "ais"  # S3 partition key: raw/source=ais/date=.../...
 VOYAGE_SOURCE_NAME = "ais_voyage"
 
 # AISStream message labels are string names, not raw AIS numeric types. Keep the
-# accepted labels broad so v2 can ingest Class B/static payloads when present
-# without breaking the current PositionReport path.
+# parsers broad so v2 can normalize Class B/static payloads if they arrive, but
+# keep the live subscription on the known-good v1 PositionReport feed. Requesting
+# the broader static/voyage list caused AISStream to close the socket before data
+# arrived, producing zero-file hourly runs.
 POSITION_MESSAGE_TYPES = {
     "PositionReport",
     "StandardClassBPositionReport",
@@ -68,12 +71,12 @@ VOYAGE_MESSAGE_TYPES = {
     "ShipStaticAndVoyageRelatedData",
     "VoyageData",
 }
-SUBSCRIBED_MESSAGE_TYPES = sorted(POSITION_MESSAGE_TYPES | VOYAGE_MESSAGE_TYPES)
+SUBSCRIBED_MESSAGE_TYPES = ["PositionReport"]
 
 _LOCODE_PATH = (
     Path(__file__).parent.parent.parent / "warehouse" / "seeds" / "un_locode.csv"
 )
-BOUNDING_BOXES = load_port_bboxes(_LOCODE_PATH)
+BOUNDING_BOXES = load_port_bboxes(_LOCODE_PATH, include_locodes=set(PORTS))
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +490,8 @@ async def consume(
     subscribe_msg = json.dumps(
         {
             "APIKey": api_key,  # Authentication
-            # Geographic filter — all maritime ports in UN LOCODE
+            # Geographic filter — keep the live subscription small and focused.
+            # Sending every UN/LOCODE box makes AISStream close the socket.
             "BoundingBoxes": BOUNDING_BOXES,
             # Keep v1 position reports and add low-risk AIS v2 payloads in parallel.
             "FilterMessageTypes": SUBSCRIBED_MESSAGE_TYPES,
@@ -576,12 +580,17 @@ async def consume(
                         logger.exception("message_parse_error")
                         continue
 
-            except websockets.ConnectionClosed:
+            except websockets.ConnectionClosed as exc:
                 if shutdown_event.is_set():
                     # Intentional shutdown — watchdog closed the connection.
                     # Don't reconnect; exit the outer loop cleanly.
                     break
-                logger.warning("websocket_disconnected", action="reconnecting")
+                logger.warning(
+                    "websocket_disconnected",
+                    action="reconnecting",
+                    code=exc.code,
+                    reason=exc.reason,
+                )
                 continue
 
             if shutdown_event.is_set():

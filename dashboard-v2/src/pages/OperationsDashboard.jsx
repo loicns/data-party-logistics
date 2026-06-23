@@ -9,6 +9,14 @@ import { installTransparentMissingImageHandler } from '../utils/mapLibreImages';
 // Traffic map. Keeps the card scannable instead of a long internal scroll.
 const PREVIEW_COUNT = 6;
 
+function hasProviderCoverageIssue(port) {
+  return ['coverage_limited', 'no_provider_messages'].includes(port?.aisDiagnostics?.status);
+}
+
+function formatDiagnosticValue(value) {
+  return value ?? 'None';
+}
+
 export default function OperationsDashboard() {
   const { port, metadata } = useData();
   const mapContainer = useRef(null);
@@ -53,11 +61,15 @@ export default function OperationsDashboard() {
 
   if (!port) return null;
   const m = port.metrics;
+  const aisDiagnostics = port.aisDiagnostics;
+  const providerCoverageIssue = hasProviderCoverageIssue(port);
 
   // Derived, data-bound values — no hardcoded gauge widths or fixed severity.
   const previewVessels = port.vessels.slice(0, PREVIEW_COUNT);
   const hiddenCount = Math.max(port.vessels.length - PREVIEW_COUNT, 0);
-  const berthedShare = m.tracked > 0 ? Math.round((m.berthed / m.tracked) * 100) : 0;
+  const trackedDisplay = providerCoverageIssue && m.tracked === 0 ? '--' : m.tracked;
+  const trackedLabel = providerCoverageIssue && m.tracked === 0 ? 'provider data' : 'active';
+  const berthedShare = m.tracked > 0 && !providerCoverageIssue ? Math.round((m.berthed / m.tracked) * 100) : 0;
   const wavePct = Math.min((m.maxWave / 5) * 100, 100); // 5m ≈ full scale
   const anchorSeverity =
     m.waiting === 0
@@ -88,12 +100,16 @@ export default function OperationsDashboard() {
               <span className="material-symbols-outlined text-primary text-[20px]">directions_boat</span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="font-display-lg text-display-lg text-on-surface">{m.tracked}</span>
-              <span className="font-body-md text-body-md text-on-surface-variant">active</span>
+              <span className="font-display-lg text-display-lg text-on-surface">{trackedDisplay}</span>
+              <span className="font-body-md text-body-md text-on-surface-variant">{trackedLabel}</span>
             </div>
             <div className="mt-2 flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm">
-              <span className="material-symbols-outlined text-[14px]">anchor</span>
-              <span className="truncate">{m.berthed} berthed · {m.waiting} waiting</span>
+              <span className="material-symbols-outlined text-[14px]">
+                {providerCoverageIssue ? 'cell_tower' : 'anchor'}
+              </span>
+              <span className="truncate">
+                {providerCoverageIssue ? aisDiagnostics.message : `${m.berthed} berthed · ${m.waiting} waiting`}
+              </span>
             </div>
             <div className="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
               <div className="h-full bg-primary" style={{ width: `${berthedShare}%` }}></div>
@@ -155,6 +171,45 @@ export default function OperationsDashboard() {
           </div>
         </div>
 
+        {aisDiagnostics && (
+          <div className="lg:col-span-12 bg-surface-container-low border border-outline-variant/50 rounded-xl p-4 shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`material-symbols-outlined text-[20px] ${providerCoverageIssue ? 'text-error' : 'text-secondary'}`}>
+                    {providerCoverageIssue ? 'cell_tower' : 'radar'}
+                  </span>
+                  <h2 className="font-title-sm text-title-sm text-on-surface">AIS provider diagnostics</h2>
+                  <span className="font-data-mono text-[10px] uppercase bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">
+                    {aisDiagnostics.status.replaceAll('_', ' ')}
+                  </span>
+                </div>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  {aisDiagnostics.detail ?? aisDiagnostics.message}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-data-mono text-data-mono">
+                <div>
+                  <div className="text-on-surface-variant text-[10px] uppercase">50nm count</div>
+                  <div className="text-on-surface">{aisDiagnostics.messageCountWithin50nm ?? 0}</div>
+                </div>
+                <div>
+                  <div className="text-on-surface-variant text-[10px] uppercase">200nm count</div>
+                  <div className="text-on-surface">{aisDiagnostics.messageCountWithin200nm ?? 0}</div>
+                </div>
+                <div>
+                  <div className="text-on-surface-variant text-[10px] uppercase">Latest 50nm</div>
+                  <div className="text-on-surface truncate">{formatDiagnosticValue(aisDiagnostics.latestMessageWithin50nm)}</div>
+                </div>
+                <div>
+                  <div className="text-on-surface-variant text-[10px] uppercase">Latest 200nm</div>
+                  <div className="text-on-surface truncate">{formatDiagnosticValue(aisDiagnostics.latestMessageWithin200nm)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="bg-surface-container border border-outline-variant/50 rounded-xl overflow-hidden flex flex-col h-[600px] relative shadow-sm">
             <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container/90 backdrop-blur-sm z-10">
@@ -176,14 +231,23 @@ export default function OperationsDashboard() {
                 <span className="material-symbols-outlined text-primary text-[20px]">format_list_bulleted</span>
                 Active Traffic
               </h2>
-              <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded font-data-mono text-[10px] border border-primary/30">{port.vesselsTotal ?? port.vessels.length} TRACKED</span>
+              <span className="bg-primary-container text-on-primary-container px-2 py-0.5 rounded font-data-mono text-[10px] border border-primary/30">
+                {providerCoverageIssue ? 'PROVIDER LIMITED' : `${port.vesselsTotal ?? port.vessels.length} TRACKED`}
+              </span>
             </div>
 
             <div className="p-4 space-y-3">
               {previewVessels.length === 0 && (
                 <div className="text-center py-10 text-on-surface-variant font-body-sm text-body-sm flex flex-col items-center gap-2">
-                  <span className="material-symbols-outlined text-[28px] opacity-50">sailing</span>
-                  No vessels surfaced in range right now.
+                  <span className="material-symbols-outlined text-[28px] opacity-50">
+                    {providerCoverageIssue ? 'cell_tower' : 'sailing'}
+                  </span>
+                  {providerCoverageIssue ? 'No AIS messages received from provider.' : 'No vessels surfaced in range right now.'}
+                  {providerCoverageIssue && (
+                    <span className="max-w-xs text-[11px] leading-4">
+                      UAE/Gulf ports require second-source validation before live tracking claims.
+                    </span>
+                  )}
                 </div>
               )}
               {previewVessels.map((vessel, idx) => (

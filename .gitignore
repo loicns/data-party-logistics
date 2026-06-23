@@ -66,3 +66,4 @@ Thumbs.db
 .playwright/
 playwright-browsers/
 .aws-sam/
+.vercel/

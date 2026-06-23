@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import time
 from io import StringIO
+from typing import cast
 from urllib.parse import urlparse
 
 import boto3
@@ -31,7 +32,7 @@ def _start_and_wait(
         QueryExecutionContext={"Database": database},
         ResultConfiguration={"OutputLocation": output_location},
     )
-    execution_id = response["QueryExecutionId"]
+    execution_id = cast(str, response["QueryExecutionId"])
 
     for _ in range(max_polls):
         status = athena.get_query_execution(QueryExecutionId=execution_id)

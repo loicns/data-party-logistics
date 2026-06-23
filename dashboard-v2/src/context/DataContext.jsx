@@ -3,6 +3,7 @@ import { PORT_COVERAGE, buildBerthAllocations } from '../data/portCoverage';
 
 const DataContext = createContext(null);
 const ZONE_ORDER = { berth: 0, anchor: 1, approaching: 2, transit: 3 };
+const FETCH_TIMEOUT_MS = 6000;
 
 // ── Derive readable labels from the export payload ─────────────────────────
 // Falls back gracefully if labels are missing (older demo-data.js)
@@ -44,6 +45,24 @@ function buildDerivedSchedule(vessels) {
     }));
 }
 
+function normalizeAisDiagnostics(port) {
+  if (port.aisDiagnostics) return port.aisDiagnostics;
+  if (!port.aisCoverageStatus) return null;
+
+  return {
+    status: port.aisCoverageStatus,
+    message: port.aisCoverageMessage ?? 'No AIS messages received from provider.',
+    detail: port.aisCoverageDetail ?? null,
+    latestMessageWithin50nm: null,
+    latestMessageWithin200nm: null,
+    messageCountWithin50nm: 0,
+    messageCountWithin200nm: 0,
+    providerMessageCount: 0,
+    nearestDistanceNm: null,
+    secondSourceValidation: port.secondSourceValidation ?? 'recommended',
+  };
+}
+
 function normalizePort(port) {
   if (!port) return port;
 
@@ -69,6 +88,7 @@ function normalizePort(port) {
     ...port,
     vessels,
     vesselsTotal: toNumber(port.vesselsTotal, vessels.length),
+    aisDiagnostics: normalizeAisDiagnostics(port),
     hasSnapshot: port.hasSnapshot ?? true,
     berthAllocations: buildBerthAllocations(port.code, port.berthAllocations),
     schedule,
@@ -152,32 +172,36 @@ function parseDataPayload(text) {
 // blank the whole dashboard.
 async function fetchJson(url, retries = 1) {
   for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error(`Request failed: ${response.status}`);
       return parseDataPayload(await response.text());
     } catch (error) {
       if (attempt >= retries) throw error;
       await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 }
 
 // VITE_DATA_URL  → set in Vercel env vars to your CloudFront JSON URL
 //   e.g. https://d1234.cloudfront.net/api/v1/demo-data.json
-// Unset in local dev → falls back to window.DEMO_DATA (public/demo-data.js fixture)
+// Unset in local dev → use the Vite /live-data.json proxy, then fall back to
+// window.DEMO_DATA only if live data is unavailable.
 //
-// In a production browser, a cross-origin CloudFront URL is rewritten to the
-// same-origin Vercel proxy (/live-data.json, see vercel.json). CloudFront's
-// CORS headers are cached inconsistently per edge PoP — `mode: cors` fetches
-// fail intermittently with "Failed to fetch" while no-cors succeeds — so the
-// dashboard silently fell back to the stale bundled fixture. Routing through
-// the same origin removes CORS from the path entirely. Local dev keeps the
-// direct URL (localhost CORS works) so no Vite proxy is needed.
+// Cross-origin CloudFront URLs are rewritten to same-origin proxy paths
+// (/live-data.json or /live-data.js). CloudFront may not send CORS headers, so
+// direct browser fetches from localhost can fail and silently fall back to the
+// bundled fixture. Vercel handles the proxy in production; Vite handles it in
+// local dev.
 function resolveDataUrl() {
   const configured = import.meta.env.VITE_DATA_URL ?? null;
-  if (!configured) return null;
-  if (!import.meta.env.PROD || typeof window === 'undefined') return configured;
+  if (!configured) return import.meta.env.DEV ? '/live-data.json' : null;
+  if (typeof window === 'undefined') return configured;
   try {
     const target = new URL(configured, window.location.origin);
     if (target.origin !== window.location.origin) {
@@ -193,11 +217,18 @@ function resolveDataUrl() {
 
 const CLOUD_DATA_URL = resolveDataUrl();
 
+function normalizeDemoData(raw) {
+  return {
+    ...raw,
+    ports: normalizePorts(raw.ports),
+  };
+}
+
 async function loadCloudData() {
   if (!CLOUD_DATA_URL) throw new Error('No VITE_DATA_URL configured');
   const raw = await fetchJson(CLOUD_DATA_URL);
   if (!raw?.ports) throw new Error('Unexpected shape from cloud data URL');
-  return raw;
+  return normalizeDemoData(raw);
 }
 
 async function loadLivePorts() {
@@ -255,8 +286,22 @@ export function DataProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
+    let seededDemoData = false;
 
     async function loadData() {
+      const demoData = window.DEMO_DATA;
+      if (demoData?.ports && !seededDemoData) {
+        const normalized = normalizeDemoData(demoData);
+        seededDemoData = true;
+        setData(normalized);
+        setCurrentPortCode((prev) => prev ?? Object.keys(normalized.ports)[0] ?? null);
+        setError(null);
+      }
+
+      if (!CLOUD_DATA_URL && demoData?.ports) {
+        return;
+      }
+
       try {
         const liveData = await loadLivePorts();
         if (cancelled) return;
@@ -265,8 +310,7 @@ export function DataProvider({ children }) {
         setError(null);
         return;
       } catch (liveError) {
-        const raw = window.DEMO_DATA;
-        if (!raw || !raw.ports) {
+        if (!demoData || !demoData.ports) {
           if (!cancelled) {
             setError(`No live API or demo-data.js found. Start the API or restore dashboard-v2/public/demo-data.js. Last live-data error: ${formatError(liveError)}`);
           }
@@ -274,10 +318,7 @@ export function DataProvider({ children }) {
         }
 
         if (cancelled) return;
-        const normalized = {
-          ...raw,
-          ports: normalizePorts(raw.ports),
-        };
+        const normalized = normalizeDemoData(demoData);
         setData(normalized);
         setCurrentPortCode((prev) => prev ?? Object.keys(normalized.ports)[0] ?? null);
         setError(null);

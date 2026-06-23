@@ -6,15 +6,60 @@
     "updated": "2026-05-04"
   },
   "layers": [
-    { "id": "external",       "label": "External Data Sources",  "color": "#64748b", "order": 0 },
-    { "id": "ingestion",      "label": "Ingestion Layer",        "color": "#3b82f6", "order": 1 },
-    { "id": "storage",        "label": "Raw Storage",            "color": "#6366f1", "order": 2 },
-    { "id": "orchestration",  "label": "Orchestration",          "color": "#8b5cf6", "order": 3 },
-    { "id": "transformation", "label": "Transformation (dbt)",   "color": "#10b981", "order": 4 },
-    { "id": "features",       "label": "Feature Store (Feast)",  "color": "#14b8a6", "order": 5 },
-    { "id": "ml",             "label": "Machine Learning",       "color": "#f59e0b", "order": 6 },
-    { "id": "serving",        "label": "Serving & API",          "color": "#ef4444", "order": 7 },
-    { "id": "frontend",       "label": "Dashboard (Frontend)",   "color": "#ec4899", "order": 8 }
+    {
+      "id": "external",
+      "label": "External Data Sources",
+      "color": "#64748b",
+      "order": 0
+    },
+    {
+      "id": "ingestion",
+      "label": "Ingestion Layer",
+      "color": "#3b82f6",
+      "order": 1
+    },
+    {
+      "id": "storage",
+      "label": "Raw Storage",
+      "color": "#6366f1",
+      "order": 2
+    },
+    {
+      "id": "orchestration",
+      "label": "Orchestration",
+      "color": "#8b5cf6",
+      "order": 3
+    },
+    {
+      "id": "transformation",
+      "label": "Transformation (Athena CTAS)",
+      "color": "#10b981",
+      "order": 4
+    },
+    {
+      "id": "features",
+      "label": "Feature Store (Feast)",
+      "color": "#14b8a6",
+      "order": 5
+    },
+    {
+      "id": "ml",
+      "label": "Machine Learning",
+      "color": "#f59e0b",
+      "order": 6
+    },
+    {
+      "id": "serving",
+      "label": "Serving & API",
+      "color": "#ef4444",
+      "order": 7
+    },
+    {
+      "id": "frontend",
+      "label": "Dashboard (Frontend)",
+      "color": "#ec4899",
+      "order": 8
+    }
   ],
   "nodes": [
     {
@@ -40,7 +85,7 @@
       "label": "NOAA Tides & Currents",
       "layer": "external",
       "status": "active",
-      "description": "NOAA CO-OPS API for tide predictions and water levels at port stations. Critical for berth availability — large vessels cannot dock during low tides.",
+      "description": "NOAA CO-OPS API for tide predictions and water levels at port stations. Critical for berth availability \u2014 large vessels cannot dock during low tides.",
       "source": null,
       "github": "https://tidesandcurrents.noaa.gov/api/"
     },
@@ -80,13 +125,12 @@
       "source": null,
       "github": "https://comtradeplus.un.org/"
     },
-
     {
       "id": "port_loader",
       "label": "Port Loader",
       "layer": "ingestion",
       "status": "implemented",
-      "description": "Loads target port coordinates and generates 200nm (3.3°) bounding boxes for AIS filtering. Reads from port configuration and produces the geographic boundaries that tell the AIS client which area of the ocean to monitor.",
+      "description": "Loads target port coordinates and generates 200nm (3.3\u00b0) bounding boxes for AIS filtering. Reads from port configuration and produces the geographic boundaries that tell the AIS client which area of the ocean to monitor.",
       "source": "ingestion/port_loader.py",
       "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/port_loader.py"
     },
@@ -153,17 +197,15 @@
       "source": "ingestion/s3_writer.py",
       "github": "https://github.com/loicns/data-party-logistics/blob/main/ingestion/s3_writer.py"
     },
-
     {
       "id": "s3_raw",
       "label": "S3 Raw Bucket",
       "layer": "storage",
       "status": "active",
-      "description": "AWS S3 bucket storing raw NDJSON files partitioned by source and date. This is the immutable data lake layer — raw data is never modified, only appended. Structure: s3://dpl-raw/raw/source={name}/date={YYYY-MM-DD}/{timestamp}.ndjson",
+      "description": "AWS S3 bucket storing raw NDJSON files partitioned by source and date. This is the immutable data lake layer \u2014 raw data is never modified, only appended. Structure: s3://dpl-raw/raw/source={name}/date={YYYY-MM-DD}/{timestamp}.ndjson",
       "source": null,
       "github": null
     },
-
     {
       "id": "prefect_ingest",
       "label": "Hourly Ingestion Flow",
@@ -183,21 +225,20 @@
       "github": "https://github.com/loicns/data-party-logistics/blob/main/orchestration/flows/ingest_ais.py"
     },
     {
-      "id": "prefect_dbt",
-      "label": "Hourly dbt Flow",
+      "id": "prefect_athena",
+      "label": "Hourly Athena CTAS Flow",
       "layer": "orchestration",
       "status": "planned",
-      "description": "Prefect @flow that runs at '15 * * * *' (15 minutes past each hour). Three sequential tasks: (1) load NDJSON from S3 → Postgres raw tables, (2) run dbt build (models + tests), (3) check source freshness. Offset by 15 minutes to give ingestion flow time to finish.",
+      "description": "Prefect @flow that runs at '15 * * * *' (15 minutes past each hour). Three sequential tasks: (1) load NDJSON from S3 \u2192 Postgres raw tables, (2) run Athena CTAS build (models + tests), (3) check source freshness. Offset by 15 minutes to give ingestion flow time to finish.",
       "source": "orchestration/flows/dbt_flow.py",
       "github": "https://github.com/loicns/data-party-logistics/blob/main/orchestration/flows/dbt_flow.py"
     },
-
     {
       "id": "pg_raw",
       "label": "Postgres raw.* Tables",
       "layer": "transformation",
       "status": "implemented",
-      "description": "Raw data loaded from S3 NDJSON into Postgres tables: raw_ais_positions, raw_weather_observations, raw_fred_indicators, raw_comtrade_flows, raw_gdelt_events. These are the dbt 'sources' — the starting point for all transformations.",
+      "description": "Raw data loaded from S3 NDJSON into Postgres tables: raw_ais_positions, raw_weather_observations, raw_fred_indicators, raw_comtrade_flows, raw_gdelt_events. These are the Athena CTAS 'sources' \u2014 the starting point for all transformations.",
       "source": "warehouse/models/staging/sources.yml",
       "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/staging/sources.yml"
     },
@@ -274,15 +315,14 @@
       "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/marts/mart_vessel_inbound.sql"
     },
     {
-      "id": "dbt_tests",
-      "label": "dbt Data Quality Tests",
+      "id": "athena_tests",
+      "label": "Athena CTAS Data Quality Tests",
       "layer": "transformation",
       "status": "planned",
       "description": "8 custom SQL tests validating data quality: coordinate ranges (-90/90), speed sanity (<50 kts), congestion score [0,1], no future timestamps, FRED series completeness, weather coverage per port, no duplicate GDELT events, positive trade values.",
       "source": "warehouse/tests/",
       "github": "https://github.com/loicns/data-party-logistics/tree/main/warehouse/tests"
     },
-
     {
       "id": "feast_repo",
       "label": "Feast Feature Repo",
@@ -301,13 +341,12 @@
       "source": null,
       "github": null
     },
-
     {
       "id": "target_congestion",
       "label": "Congestion Target",
       "layer": "ml",
       "status": "planned",
-      "description": "Binary classification target: is_congested_24h. Defined as 1 when the future (T+24h) anchorage count exceeds the port's 75th percentile historical threshold. Computed via a self-join in dbt on the hourly anchorage counts table.",
+      "description": "Binary classification target: is_congested_24h. Defined as 1 when the future (T+24h) anchorage count exceeds the port's 75th percentile historical threshold. Computed via a self-join in Athena CTAS on the hourly anchorage counts table.",
       "source": "warehouse/models/targets/target_port_congestion.sql",
       "github": "https://github.com/loicns/data-party-logistics/blob/main/warehouse/models/targets/target_port_congestion.sql"
     },
@@ -325,7 +364,7 @@
       "label": "MLflow Model Registry",
       "layer": "ml",
       "status": "planned",
-      "description": "MLflow tracking server for experiment logging and model versioning. Each training run logs hyperparameters, F1/ROC-AUC metrics, SHAP plots, and the serialized model artifact. The production model is promoted via the Registry's staging → production workflow.",
+      "description": "MLflow tracking server for experiment logging and model versioning. Each training run logs hyperparameters, F1/ROC-AUC metrics, SHAP plots, and the serialized model artifact. The production model is promoted via the Registry's staging \u2192 production workflow.",
       "source": null,
       "github": null
     },
@@ -338,7 +377,6 @@
       "source": "models/evaluation/",
       "github": "https://github.com/loicns/data-party-logistics/tree/main/models/evaluation"
     },
-
     {
       "id": "fastapi",
       "label": "FastAPI Inference Service",
@@ -357,7 +395,6 @@
       "source": "infra/",
       "github": "https://github.com/loicns/data-party-logistics/tree/main/infra"
     },
-
     {
       "id": "dashboard",
       "label": "Port Intelligence Dashboard",
@@ -369,66 +406,228 @@
     }
   ],
   "edges": [
-    { "from": "aisstream",       "to": "ais_client" },
-    { "from": "noaa_api",        "to": "weather_client" },
-    { "from": "noaa_tides_api",  "to": "noaa_tides_client" },
-    { "from": "cmems_api",       "to": "cmems_client" },
-    { "from": "fred_api",        "to": "config" },
-    { "from": "gdelt_api",       "to": "config" },
-    { "from": "comtrade_api",    "to": "config" },
-
-    { "from": "port_loader",     "to": "ais_client" },
-    { "from": "config",          "to": "ais_client" },
-    { "from": "config",          "to": "weather_client" },
-    { "from": "config",          "to": "noaa_tides_client" },
-    { "from": "config",          "to": "cmems_client" },
-
-    { "from": "ais_client",      "to": "s3_writer" },
-    { "from": "weather_client",  "to": "s3_writer" },
-    { "from": "noaa_tides_client","to": "s3_writer" },
-    { "from": "cmems_client",    "to": "s3_writer" },
-    { "from": "carrier_clients", "to": "s3_writer" },
-    { "from": "s3_writer",       "to": "s3_raw" },
-
-    { "from": "prefect_ingest",  "to": "ais_client",      "label": "submits" },
-    { "from": "prefect_ingest",  "to": "weather_client",   "label": "submits" },
-    { "from": "prefect_ingest",  "to": "noaa_tides_client","label": "submits" },
-    { "from": "prefect_ingest",  "to": "cmems_client",     "label": "submits" },
-    { "from": "prefect_ais",     "to": "ais_client",       "label": "legacy" },
-
-    { "from": "s3_raw",          "to": "pg_raw" },
-    { "from": "prefect_dbt",     "to": "pg_raw",           "label": "loads" },
-    { "from": "pg_raw",          "to": "stg_ais" },
-    { "from": "pg_raw",          "to": "stg_weather" },
-    { "from": "pg_raw",          "to": "stg_comtrade" },
-    { "from": "pg_raw",          "to": "stg_fred" },
-
-    { "from": "stg_ais",         "to": "mart_congestion" },
-    { "from": "stg_ais",         "to": "mart_vessel" },
-    { "from": "stg_ais",         "to": "mart_port_hourly" },
-    { "from": "stg_ais",         "to": "mart_vessel_inbound" },
-    { "from": "stg_weather",     "to": "mart_port_hourly" },
-    { "from": "stg_fred",        "to": "mart_port_hourly" },
-    { "from": "stg_comtrade",    "to": "mart_port_hourly" },
-
-    { "from": "dbt_tests",       "to": "stg_ais",          "label": "validates" },
-    { "from": "dbt_tests",       "to": "mart_congestion",   "label": "validates" },
-
-    { "from": "mart_port_hourly","to": "feast_repo" },
-    { "from": "mart_vessel_inbound", "to": "feast_repo" },
-    { "from": "feast_repo",      "to": "feast_online" },
-
-    { "from": "mart_port_hourly","to": "target_congestion" },
-    { "from": "feast_repo",      "to": "lgbm_model",       "label": "training data" },
-    { "from": "target_congestion","to": "lgbm_model",       "label": "labels" },
-    { "from": "lgbm_model",      "to": "mlflow_registry" },
-    { "from": "lgbm_model",      "to": "shap_explainer" },
-
-    { "from": "mlflow_registry", "to": "fastapi",           "label": "loads model" },
-    { "from": "feast_online",    "to": "fastapi",           "label": "live features" },
-    { "from": "shap_explainer",  "to": "fastapi",           "label": "feature importance" },
-    { "from": "fastapi",         "to": "dashboard" },
-    { "from": "fargate_service", "to": "prefect_ingest",    "label": "runs" },
-    { "from": "fargate_service", "to": "fastapi",           "label": "hosts" }
+    {
+      "from": "aisstream",
+      "to": "ais_client"
+    },
+    {
+      "from": "noaa_api",
+      "to": "weather_client"
+    },
+    {
+      "from": "noaa_tides_api",
+      "to": "noaa_tides_client"
+    },
+    {
+      "from": "cmems_api",
+      "to": "cmems_client"
+    },
+    {
+      "from": "fred_api",
+      "to": "config"
+    },
+    {
+      "from": "gdelt_api",
+      "to": "config"
+    },
+    {
+      "from": "comtrade_api",
+      "to": "config"
+    },
+    {
+      "from": "port_loader",
+      "to": "ais_client"
+    },
+    {
+      "from": "config",
+      "to": "ais_client"
+    },
+    {
+      "from": "config",
+      "to": "weather_client"
+    },
+    {
+      "from": "config",
+      "to": "noaa_tides_client"
+    },
+    {
+      "from": "config",
+      "to": "cmems_client"
+    },
+    {
+      "from": "ais_client",
+      "to": "s3_writer"
+    },
+    {
+      "from": "weather_client",
+      "to": "s3_writer"
+    },
+    {
+      "from": "noaa_tides_client",
+      "to": "s3_writer"
+    },
+    {
+      "from": "cmems_client",
+      "to": "s3_writer"
+    },
+    {
+      "from": "carrier_clients",
+      "to": "s3_writer"
+    },
+    {
+      "from": "s3_writer",
+      "to": "s3_raw"
+    },
+    {
+      "from": "prefect_ingest",
+      "to": "ais_client",
+      "label": "submits"
+    },
+    {
+      "from": "prefect_ingest",
+      "to": "weather_client",
+      "label": "submits"
+    },
+    {
+      "from": "prefect_ingest",
+      "to": "noaa_tides_client",
+      "label": "submits"
+    },
+    {
+      "from": "prefect_ingest",
+      "to": "cmems_client",
+      "label": "submits"
+    },
+    {
+      "from": "prefect_ais",
+      "to": "ais_client",
+      "label": "legacy"
+    },
+    {
+      "from": "s3_raw",
+      "to": "pg_raw"
+    },
+    {
+      "from": "prefect_athena",
+      "to": "pg_raw",
+      "label": "loads"
+    },
+    {
+      "from": "pg_raw",
+      "to": "stg_ais"
+    },
+    {
+      "from": "pg_raw",
+      "to": "stg_weather"
+    },
+    {
+      "from": "pg_raw",
+      "to": "stg_comtrade"
+    },
+    {
+      "from": "pg_raw",
+      "to": "stg_fred"
+    },
+    {
+      "from": "stg_ais",
+      "to": "mart_congestion"
+    },
+    {
+      "from": "stg_ais",
+      "to": "mart_vessel"
+    },
+    {
+      "from": "stg_ais",
+      "to": "mart_port_hourly"
+    },
+    {
+      "from": "stg_ais",
+      "to": "mart_vessel_inbound"
+    },
+    {
+      "from": "stg_weather",
+      "to": "mart_port_hourly"
+    },
+    {
+      "from": "stg_fred",
+      "to": "mart_port_hourly"
+    },
+    {
+      "from": "stg_comtrade",
+      "to": "mart_port_hourly"
+    },
+    {
+      "from": "athena_tests",
+      "to": "stg_ais",
+      "label": "validates"
+    },
+    {
+      "from": "athena_tests",
+      "to": "mart_congestion",
+      "label": "validates"
+    },
+    {
+      "from": "mart_port_hourly",
+      "to": "feast_repo"
+    },
+    {
+      "from": "mart_vessel_inbound",
+      "to": "feast_repo"
+    },
+    {
+      "from": "feast_repo",
+      "to": "feast_online"
+    },
+    {
+      "from": "mart_port_hourly",
+      "to": "target_congestion"
+    },
+    {
+      "from": "feast_repo",
+      "to": "lgbm_model",
+      "label": "training data"
+    },
+    {
+      "from": "target_congestion",
+      "to": "lgbm_model",
+      "label": "labels"
+    },
+    {
+      "from": "lgbm_model",
+      "to": "mlflow_registry"
+    },
+    {
+      "from": "lgbm_model",
+      "to": "shap_explainer"
+    },
+    {
+      "from": "mlflow_registry",
+      "to": "fastapi",
+      "label": "loads model"
+    },
+    {
+      "from": "feast_online",
+      "to": "fastapi",
+      "label": "live features"
+    },
+    {
+      "from": "shap_explainer",
+      "to": "fastapi",
+      "label": "feature importance"
+    },
+    {
+      "from": "fastapi",
+      "to": "dashboard"
+    },
+    {
+      "from": "fargate_service",
+      "to": "prefect_ingest",
+      "label": "runs"
+    },
+    {
+      "from": "fargate_service",
+      "to": "fastapi",
+      "label": "hosts"
+    }
   ]
 }

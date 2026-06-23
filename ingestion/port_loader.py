@@ -18,17 +18,21 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-APPROACH_NM = 200.0  # nautical miles radius around each port
+APPROACH_NM = 50.0  # nautical miles radius around each port
 NM_TO_DEG = 1 / 60  # 1 nautical mile ≈ 1/60 degree latitude
 
 
-def load_port_bboxes(csv_path: str | Path) -> list[list[list[float]]]:
+def load_port_bboxes(
+    csv_path: str | Path,
+    include_locodes: set[str] | None = None,
+) -> list[list[list[float]]]:
     """Load all maritime ports from UN LOCODE and return bounding boxes.
 
     Returns a list of [[south_lat, west_lon], [north_lat, east_lon]] boxes,
     one per port with valid coordinates and a maritime function code.
 
     AISStream accepts this list directly in the BoundingBoxes subscription field.
+    Pass include_locodes to limit the subscription to selected UN/LOCODEs.
     """
     path = Path(csv_path)
     bboxes: list[list[list[float]]] = []
@@ -54,6 +58,11 @@ def load_port_bboxes(csv_path: str | Path) -> list[list[list[float]]]:
             # Filter: must have maritime function (Function contains "1")
             # and non-empty coordinates
             if "1" not in (row.get("Function") or ""):
+                continue
+            country = (row.get("Country") or "").strip()
+            loc = (row.get("Location") or "").strip()
+            locode = f"{country}{loc}"
+            if include_locodes is not None and locode not in include_locodes:
                 continue
             coords = row.get("Coordinates", "").strip()
             if not coords:

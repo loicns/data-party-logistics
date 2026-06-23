@@ -166,7 +166,7 @@ function StatusBadge({ status, task = false }) {
   const meta = task ? getTaskStatusMeta(status) : getStatusMeta(status);
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${meta.badge}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-none border px-2 py-1 text-xs font-semibold ${meta.badge}`}>
       <span className="material-symbols-outlined text-[16px]">{meta.icon}</span>
       {meta.label}
     </span>
@@ -177,7 +177,7 @@ function ActionLink({ to, children, icon = 'arrow_forward' }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-primary hover:bg-primary-container/40 focus:outline-none focus:ring-2 focus:ring-primary"
+      className="inline-flex items-center gap-1 rounded-none px-2 py-1 text-xs font-bold text-primary hover:bg-primary-container/40 focus:outline-none focus:ring-2 focus:ring-primary"
     >
       {children}
       <span className="material-symbols-outlined text-[14px]">{icon}</span>
@@ -201,7 +201,7 @@ function MetricCard({ label, value, detail, icon, tone = 'doing', to, children }
     </>
   );
 
-  const className = "bg-surface-container border border-outline-variant/50 rounded-xl p-4 shadow-sm transition-colors";
+  const className = `bg-surface-container border border-outline-variant/50 border-l-4 ${meta.dot.replace('bg-', 'border-')} rounded-none p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md`;
 
   if (to) {
     return (
@@ -230,7 +230,7 @@ function SourceList({ docs }) {
         <Link
           key={doc}
           to={sourceFocusPath(doc)}
-          className="inline-flex items-center gap-1 rounded-md border border-outline-variant/50 bg-surface-container-high px-2 py-1 text-xs text-on-surface-variant font-data-mono break-all hover:border-primary/50 hover:text-primary"
+          className="inline-flex items-center gap-1 rounded-none border border-outline-variant/50 bg-surface-container-high px-2 py-1 text-xs text-on-surface-variant font-data-mono break-all hover:border-primary/50 hover:text-primary"
         >
           {doc}
           <span className="material-symbols-outlined text-[13px]">pageview</span>
@@ -249,7 +249,7 @@ function MilestoneModal({ milestone, area, onClose }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
       <div
-        className="w-full max-w-4xl max-h-[88vh] overflow-y-auto rounded-xl border border-outline-variant/70 bg-surface-container shadow-2xl"
+        className="w-full max-w-4xl max-h-[88vh] overflow-y-auto rounded-none border border-outline-variant/70 bg-surface-container shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="roadmap-milestone-title"
@@ -266,7 +266,7 @@ function MilestoneModal({ milestone, area, onClose }) {
           </div>
           <button
             type="button"
-            className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+            className="rounded-none p-2 text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
             onClick={onClose}
             aria-label="Close milestone details"
           >
@@ -284,7 +284,7 @@ function MilestoneModal({ milestone, area, onClose }) {
               <SourceList docs={milestone.sourceDocs} />
             </section>
 
-            <section className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4 space-y-4">
+            <section className="rounded-none border border-outline-variant/50 bg-surface-container-low p-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-on-surface-variant uppercase tracking-[0.08em] font-semibold">Timeframe</p>
@@ -304,7 +304,7 @@ function MilestoneModal({ milestone, area, onClose }) {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {TASK_STATUS_ORDER.map((status) => (
-                  <div key={status} className="rounded-lg bg-surface-container p-3 border border-outline-variant/30">
+                  <div key={status} className="rounded-none bg-surface-container p-3 border border-outline-variant/30">
                     <p className="text-lg font-black text-on-surface">{counts[status]}</p>
                     <p className="text-xs text-on-surface-variant">{getTaskStatusMeta(status).label}</p>
                   </div>
@@ -320,7 +320,7 @@ function MilestoneModal({ milestone, area, onClose }) {
             </div>
             <div className="space-y-3">
               {milestone.tasks.map((task) => (
-                <article key={task.id} className="rounded-xl border border-outline-variant/50 bg-surface-container-low p-4">
+                <article key={task.id} className="rounded-none border border-outline-variant/50 bg-surface-container-low p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -336,7 +336,7 @@ function MilestoneModal({ milestone, area, onClose }) {
                       <Link
                         to={roadmapPath('tasks', { milestone: milestone.id, task: task.id, status: task.status })}
                         onClick={onClose}
-                        className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
+                        className="inline-flex items-center gap-1 rounded-none border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
                       >
                         <span className="material-symbols-outlined text-[15px]">checklist</span>
                         Task list
@@ -344,7 +344,7 @@ function MilestoneModal({ milestone, area, onClose }) {
                       <Link
                         to={roadmapPath('board', { status: task.status, task: task.id })}
                         onClick={onClose}
-                        className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
+                        className="inline-flex items-center gap-1 rounded-none border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
                       >
                         <span className="material-symbols-outlined text-[15px]">view_kanban</span>
                         Board
@@ -370,10 +370,10 @@ function RoadmapShell({ roadmap, children }) {
           <div className="flex items-center gap-2">
             <Link
               to="/"
-              className="rounded-xl p-1 hover:bg-surface-variant focus:outline-none focus:ring-2 focus:ring-primary"
+              className="rounded-none p-1 hover:bg-surface-variant focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Go to home dashboard"
             >
-              <BrandMark className="h-6 w-6" />
+              <BrandMark />
             </Link>
             <div className="min-w-0">
               <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-on-surface-variant">Planning workspace</p>
@@ -387,7 +387,7 @@ function RoadmapShell({ roadmap, children }) {
             <NavLink
               key={view.id}
               to={view.path}
-              className={({ isActive }) => `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${isActive
+              className={({ isActive }) => `flex items-center gap-2.5 rounded-none px-3 py-2 text-xs font-semibold transition-colors ${isActive
                 ? 'bg-primary-container text-primary'
                 : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
               }`}
@@ -401,7 +401,7 @@ function RoadmapShell({ roadmap, children }) {
         <div className="hidden p-4 border-t border-outline-variant/50 shrink-0 lg:block">
           <Link
             to="/dashboard"
-            className="flex items-center justify-center gap-2 rounded-xl border border-outline-variant/60 px-4 py-2 text-sm font-bold text-primary hover:bg-primary-container/40"
+            className="flex items-center justify-center gap-2 rounded-none border border-outline-variant/60 px-4 py-2 text-sm font-bold text-primary hover:bg-primary-container/40"
           >
             <span className="material-symbols-outlined text-[18px]">dashboard</span>
             Ops Dashboard
@@ -460,7 +460,7 @@ function OverviewView({
         title="One planning source for done, doing, and backlog work"
         description={roadmap.publicAudience}
       >
-        <div className="rounded-xl border border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface-variant xl:max-w-md">
+        <div className="rounded-none border border-outline-variant/50 bg-surface-container px-4 py-3 text-sm text-on-surface-variant xl:max-w-md">
           <div className="flex items-center gap-2 text-on-surface">
             <span className="material-symbols-outlined text-primary text-[20px]">lock</span>
             <span className="font-bold">Edit policy</span>
@@ -510,7 +510,7 @@ function OverviewView({
       </div>
 
       {activeTasks.length > 0 && (
-        <section className="mb-6 rounded-xl border border-outline-variant/50 bg-surface-container p-4 shadow-sm">
+        <section className="mb-6 rounded-none border border-outline-variant/50 bg-surface-container p-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -521,7 +521,7 @@ function OverviewView({
             </div>
             <Link
               to={roadmapPath('board', { status: 'doing' })}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant/60 px-4 py-2 text-sm font-bold text-primary hover:bg-primary-container/40"
+              className="inline-flex items-center justify-center gap-2 rounded-none border border-outline-variant/60 px-4 py-2 text-sm font-bold text-primary hover:bg-primary-container/40"
             >
               <span className="material-symbols-outlined text-[18px]">view_kanban</span>
               Open doing board
@@ -532,7 +532,7 @@ function OverviewView({
               <Link
                 key={task.id}
                 to={roadmapPath('board', { status: task.status, task: task.id })}
-                className="rounded-lg border border-outline-variant/50 bg-surface-container-low p-3 hover:border-primary/50 hover:bg-surface-variant"
+                className="rounded-none border border-outline-variant/50 bg-surface-container-low p-3 hover:border-primary/50 hover:bg-surface-variant"
               >
                 <p className="text-xs font-semibold uppercase text-on-surface-variant">{task.milestoneName}</p>
                 <p className="mt-1 text-sm font-bold leading-snug text-on-surface">{task.label}</p>
@@ -543,7 +543,7 @@ function OverviewView({
       )}
 
       <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <section className="rounded-xl border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
+        <section className="rounded-none border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-on-surface">Roadmap Progress</h2>
@@ -557,7 +557,7 @@ function OverviewView({
                   <button
                     type="button"
                     key={status}
-                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${active
+                    className={`rounded-none border px-3 py-2 text-sm font-semibold transition-colors ${active
                       ? 'border-primary bg-primary-container text-primary'
                       : 'border-outline-variant/60 bg-surface-container-low text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
                     }`}
@@ -574,7 +574,7 @@ function OverviewView({
           </div>
         </section>
 
-        <section className="rounded-xl border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
+        <section className="rounded-none border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
           <div className="mb-5">
             <h2 className="text-lg font-bold text-on-surface">Milestone Mix</h2>
             <p className="mt-1 text-sm text-on-surface-variant">Completed, doing, and backlog milestones.</p>
@@ -587,7 +587,7 @@ function OverviewView({
               <button
                 type="button"
                 key={status}
-                className="rounded-lg border border-outline-variant/50 bg-surface-container-low p-3 text-left hover:bg-surface-variant"
+                className="rounded-none border border-outline-variant/50 bg-surface-container-low p-3 text-left hover:bg-surface-variant"
                 onClick={() => onStatusFilterChange(status)}
               >
                 <div className="flex items-center gap-2">
@@ -670,7 +670,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
           <label className="text-xs font-semibold uppercase tracking-[0.08em] text-on-surface-variant" htmlFor="roadmap-task-search">
             Search tasks
           </label>
-          <div className="flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container px-3 py-2">
+          <div className="flex items-center gap-2 rounded-none border border-outline-variant/60 bg-surface-container px-3 py-2">
             <span className="material-symbols-outlined text-[18px] text-on-surface-variant">search</span>
             <input
               id="roadmap-task-search"
@@ -682,7 +682,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
           </div>
         </div>
       </PageIntro>
-      <div className="flex h-[calc(100vh-14rem)] bg-surface-container border border-outline-variant/50 rounded-xl overflow-hidden shadow-sm">
+      <div className="flex h-[calc(100vh-14rem)] bg-surface-container border border-outline-variant/50 rounded-none overflow-hidden shadow-sm">
         {/* Sidebar for milestones */}
         <div className="w-72 border-r border-outline-variant/50 bg-surface-container-low flex flex-col shrink-0">
           <div className="p-4 border-b border-outline-variant/50 bg-surface-container shrink-0">
@@ -695,7 +695,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                   <button
                     key={status}
                     onClick={() => updateTaskParams({ milestoneStatus: status, milestone: null, task: null })}
-                    className={`px-2 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    className={`px-2 py-1 text-xs font-semibold rounded-none transition-colors ${
                       active ? 'bg-primary-container text-primary' : 'bg-surface-container border border-outline-variant/50 text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
@@ -714,7 +714,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                   <button
                     key={milestone.id}
                     onClick={() => updateTaskParams({ milestone: milestone.id, task: null })}
-                    className={`w-full text-left p-3 rounded-xl border transition-colors flex flex-col gap-2 ${
+                    className={`w-full text-left p-3 rounded-none border transition-colors flex flex-col gap-2 ${
                       active
                         ? 'bg-primary-container/40 border-primary/30 text-on-surface'
                         : 'bg-surface-container border-outline-variant/30 hover:bg-surface-variant text-on-surface-variant'
@@ -752,7 +752,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                     <p className="mt-3 text-sm text-on-surface-variant leading-relaxed max-w-2xl">{selectedMilestone.stakeholderOutcome}</p>
                   </div>
                   <button
-                    className="shrink-0 flex items-center gap-2 rounded-lg border border-outline-variant/60 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-container/40"
+                    className="shrink-0 flex items-center gap-2 rounded-none border border-outline-variant/60 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary-container/40"
                     onClick={() => onOpenMilestone(selectedMilestone)}
                   >
                     <span className="material-symbols-outlined text-[18px]">open_in_full</span>
@@ -768,7 +768,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                       <button
                         key={status}
                         onClick={() => updateTaskParams({ status, task: null })}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border ${
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-colors border ${
                           active ? 'bg-secondary-container border-secondary/40 text-on-secondary-container' : 'bg-surface-container-low border-outline-variant/50 text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
                         }`}
                       >
@@ -783,7 +783,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                         setSearchTerm('');
                         navigate(roadmapPath('tasks', { milestone: selectedMilestone.id }));
                       }}
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border border-outline-variant/50 bg-surface-container-low text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-none transition-colors border border-outline-variant/50 bg-surface-container-low text-on-surface-variant hover:bg-surface-variant hover:text-on-surface"
                     >
                       Clear filters
                     </button>
@@ -800,7 +800,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                       <article
                         key={task.id}
                         id={`roadmap-task-${task.id}`}
-                        className={`rounded-xl border border-outline-variant/50 bg-surface-container-low p-5 shadow-sm transition-colors ${focusRing(isFocused)}`}
+                        className={`rounded-none border border-outline-variant/50 border-l-4 ${getTaskStatusMeta(task.status).dot.replace('bg-', 'border-')} bg-surface-container-low p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${focusRing(isFocused)}`}
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="flex items-start gap-4">
@@ -812,7 +812,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                               <StatusBadge status={task.status} task />
                               <span className="text-xs font-semibold uppercase text-on-surface-variant">{task.timeframe}</span>
                               {isFocused && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-primary-container px-2 py-1 text-xs font-bold text-primary">
+                                <span className="inline-flex items-center gap-1 rounded-none bg-primary-container px-2 py-1 text-xs font-bold text-primary">
                                   <span className="material-symbols-outlined text-[14px]">my_location</span>
                                   Focused
                                 </span>
@@ -828,14 +828,14 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                             <button
                               type="button"
                               onClick={() => onOpenMilestone(selectedMilestone)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
+                              className="inline-flex items-center gap-1 rounded-none border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
                             >
                               <span className="material-symbols-outlined text-[15px]">open_in_full</span>
                               Milestone
                             </button>
                             <Link
                               to={roadmapPath('board', { status: task.status, task: task.id })}
-                              className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
+                              className="inline-flex items-center gap-1 rounded-none border border-outline-variant/60 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary-container/40"
                             >
                               <span className="material-symbols-outlined text-[15px]">view_kanban</span>
                               Board
@@ -846,7 +846,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                       );
                     })
                   ) : (
-                    <div className="rounded-xl border border-dashed border-outline-variant/60 p-8 text-center">
+                    <div className="rounded-none border border-dashed border-outline-variant/60 p-8 text-center">
                       <span className="material-symbols-outlined text-4xl text-on-surface-variant/50 mb-2">task</span>
                       <p className="text-on-surface-variant">No tasks match the selected filter for this milestone.</p>
                       <button
@@ -855,7 +855,7 @@ function TasksView({ milestones, tasks, onOpenMilestone }) {
                           setSearchTerm('');
                           navigate(roadmapPath('tasks', { milestone: selectedMilestone.id }));
                         }}
-                        className="mt-4 rounded-lg border border-outline-variant/60 px-4 py-2 text-sm font-bold text-primary hover:bg-primary-container/40"
+                        className="mt-4 rounded-none border border-outline-variant/60 px-4 py-2 text-sm font-bold text-primary hover:bg-primary-container/40"
                       >
                         Clear filters
                       </button>
@@ -912,7 +912,7 @@ function KanbanBoardView({ tasks, milestones, onOpenMilestone }) {
                 type="button"
                 key={status}
                 onClick={() => navigate(roadmapPath('board', { status }))}
-                className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${active
+                className={`rounded-none border px-3 py-2 text-sm font-semibold transition-colors ${active
                   ? 'border-primary bg-primary-container text-primary'
                   : 'border-outline-variant/60 bg-surface-container-low text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
                 }`}
@@ -928,13 +928,13 @@ function KanbanBoardView({ tasks, milestones, onOpenMilestone }) {
         {visibleStatuses.map((status) => {
           const meta = getTaskStatusMeta(status);
           return (
-            <section key={status} className="w-80 min-w-[320px] flex-none flex flex-col rounded-xl border border-outline-variant/50 bg-surface-container p-3 shadow-sm snap-start">
+            <section key={status} className="w-80 min-w-[320px] flex-none flex flex-col rounded-none border border-outline-variant/50 bg-surface-container p-3 shadow-sm snap-start">
               <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 rounded-full ${meta.dot}`} />
                   <h2 className="text-sm font-bold uppercase tracking-wide text-on-surface">{meta.label}</h2>
                 </div>
-                <span className="rounded-md border border-outline-variant/50 bg-surface-container-high px-2 py-1 font-data-mono text-[10px] text-on-surface">
+                <span className="rounded-none border border-outline-variant/50 bg-surface-container-high px-2 py-1 font-data-mono text-[10px] text-on-surface">
                   {tasksByStatus[status].length}
                 </span>
               </div>
@@ -947,13 +947,13 @@ function KanbanBoardView({ tasks, milestones, onOpenMilestone }) {
                     <article
                       key={task.id}
                       id={`roadmap-board-task-${task.id}`}
-                      className={`rounded-xl border border-outline-variant/50 bg-surface-container-low p-3 shadow-sm transition-colors ${focusRing(isFocused)}`}
+                      className={`rounded-none border border-outline-variant/50 border-l-4 ${getTaskStatusMeta(task.status).dot.replace('bg-', 'border-')} bg-surface-container-low p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${focusRing(isFocused)}`}
                     >
                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
                         <StatusBadge status={task.status} task />
                         <span className="text-[10px] uppercase font-semibold text-on-surface-variant">{task.timeframe}</span>
                         {isFocused && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-primary-container px-2 py-1 text-[10px] font-bold text-primary">
+                          <span className="inline-flex items-center gap-1 rounded-none bg-primary-container px-2 py-1 text-[10px] font-bold text-primary">
                             <span className="material-symbols-outlined text-[12px]">my_location</span>
                             Focused
                           </span>
@@ -976,7 +976,7 @@ function KanbanBoardView({ tasks, milestones, onOpenMilestone }) {
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Link
                           to={roadmapPath('tasks', { milestone: task.milestoneId, task: task.id, status: task.status })}
-                          className="inline-flex items-center gap-1 rounded-md border border-outline-variant/50 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary-container/40"
+                          className="inline-flex items-center gap-1 rounded-none border border-outline-variant/50 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary-container/40"
                         >
                           <span className="material-symbols-outlined text-[13px]">checklist</span>
                           Task list
@@ -984,7 +984,7 @@ function KanbanBoardView({ tasks, milestones, onOpenMilestone }) {
                         <button
                           type="button"
                           onClick={() => navigate(roadmapPath('board', { status: task.status, task: task.id }))}
-                          className="inline-flex items-center gap-1 rounded-md border border-outline-variant/50 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary-container/40"
+                          className="inline-flex items-center gap-1 rounded-none border border-outline-variant/50 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary-container/40"
                         >
                           <span className="material-symbols-outlined text-[13px]">link</span>
                           Focus
@@ -994,7 +994,7 @@ function KanbanBoardView({ tasks, milestones, onOpenMilestone }) {
                   );
                 })}
                 {tasksByStatus[status].length === 0 && (
-                  <div className="rounded-xl border border-dashed border-outline-variant/60 p-6 text-center text-sm text-on-surface-variant">
+                  <div className="rounded-none border border-dashed border-outline-variant/60 p-6 text-center text-sm text-on-surface-variant">
                     No tasks in this column.
                   </div>
                 )}
@@ -1020,7 +1020,7 @@ function SourcesAdminView({ roadmap }) {
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1fr]">
-        <section className="rounded-xl border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
+        <section className="rounded-none border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[20px]">storage</span>
             <h2 className="text-lg font-bold text-on-surface">Storage and Control Plane</h2>
@@ -1045,14 +1045,14 @@ function SourcesAdminView({ roadmap }) {
           </div>
         </section>
 
-        <section className="rounded-xl border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
+        <section className="rounded-none border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-[20px]">rule</span>
             <h2 className="text-lg font-bold text-on-surface">Status Definitions</h2>
           </div>
           <div className="space-y-3">
             {AREA_STATUS_ORDER.map((status) => (
-              <div key={status} className="rounded-lg border border-outline-variant/40 bg-surface-container-low p-3">
+              <div key={status} className="rounded-none border border-outline-variant/40 bg-surface-container-low p-3">
                 <div className="mb-1 flex items-center gap-2">
                   <StatusBadge status={status} />
                 </div>
@@ -1063,7 +1063,7 @@ function SourcesAdminView({ roadmap }) {
         </section>
       </div>
 
-      <section className="mt-6 rounded-xl border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
+      <section className="mt-6 rounded-none border border-outline-variant/50 bg-surface-container p-5 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <span className="material-symbols-outlined text-primary text-[20px]">description</span>
           <h2 className="text-lg font-bold text-on-surface">Planning Inputs</h2>
@@ -1072,8 +1072,8 @@ function SourcesAdminView({ roadmap }) {
           {roadmap.sourceDocuments.map((doc) => (
             <Link
               key={doc.path}
-              to={sourceFocusPath(doc.path)}
-              className={`rounded-lg border border-outline-variant/40 bg-surface-container-low p-3 hover:border-primary/50 hover:bg-surface-variant ${focusRing(focusedDoc === doc.path)}`}
+              to={"/" + doc.path.replace('.md', '')}
+              className={`rounded-none border border-outline-variant/40 bg-surface-container-low p-3 hover:border-primary/50 hover:bg-surface-variant transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1218,7 +1218,7 @@ export default function RoadmapDashboard() {
   if (error || !roadmap) {
     return (
       <div className="min-h-screen bg-background p-6 text-on-background">
-        <div className="mx-auto max-w-3xl rounded-xl border border-error/50 bg-error-container/20 p-6 text-on-error-container">
+        <div className="mx-auto max-w-3xl rounded-none border border-error/50 bg-error-container/20 p-6 text-on-error-container">
           <div className="flex items-center gap-2 font-bold">
             <span className="material-symbols-outlined">error</span>
             Roadmap could not be loaded

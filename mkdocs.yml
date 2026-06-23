@@ -62,46 +62,39 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Pipeline Explorer: pipeline-explorer.md
-  - Secrets And Environments: secrets-and-environments.md
-  - Product:
-      - Product PRD: 07-product-prd.md
-      - Model Card: model-card.md
-      - Coverage: coverage.md
-      - Event Intelligence Layer: event-intelligence.md
-      - Event-Aware Dashboard Task List: 22-event-aware-dashboard-task-list.md
-      - Mid-Term Prediction Plan: 23-mid-term-prediction-plan.md
-      - Current State Audit: 08-current-state-audit.md
-      - Market Validation And Reach Plan: 21-market-validation-and-reach-plan.md
-      - Next Week Demo Calendar: 09-next-week-demo-calendar.md
-      - Serverless Pilot: 12-serverless-pilot.md
-      - Serverless Status And Cost Forecast: 13-serverless-status-and-costs.md
+  - Product & Vision:
+      - Product PRD: product/prd.md
+      - Problem Framing: product/problem-framing.md
+      - Coverage: product/coverage.md
+      - Market Validation: product/market-validation.md
   - Architecture:
-      - System Architecture Overview: 14-system-architecture-overview.md
-      - Data Flow And Storage Contract: 15-data-flow-and-storage-contract.md
-      - Dashboard Publishing Architecture: 16-dashboard-publishing-architecture.md
-      - Monitoring And Alarm Semantics: 17-monitoring-and-alarm-semantics.md
-      - IAM And Deployment Identity: 18-iam-and-deployment-identity.md
-      - Athena Query Layer Guide: 19-athena-query-layer-guide.md
-      - Dual Runtime Implementation: 20-dual-runtime-implementation.md
-      - Warehouse Schema: 04-warehouse-schema.md
-      - Problem Framing: 01-problem-framing.md
-      - Data Sources: 02-data-sources.md
-      - EC2 Ingestion Runbook: 03-ec2-ingestion-runbook.md
-      - EC2 Ingestion Explained: 04-ec2-ingestion-implementation-explained.md
-      - Ingestion Architecture Options: 05-ingestion-architecture-options.md
-      - EC2 Shutdown And ML Handoff: 06-ec2-stop-and-ml-handoff.md
-      - NOAA Geofence Ingestion: noaa-geofence-ingestion.md
-      - Real Geofences Implementation: real-geofences-implementation.md
-  - Operations:
-      - Cloud Go-Live Plan: 11-cloud-go-live-plan.md
-      - Vessel Export Implementation: 10-vessel-export-implementation.md
-      - Data Dictionary: blueprint/10-DATA-DICTIONARY.md
-      - Pilot Runbook: blueprint/08-RUNBOOK.md
-      - AIS Outage Incident: incidents/2026-06-11-ais-outage.md
-  - Learning Journal:
-      - Overview: learning-journal/index.md
-  - Blog:
-      - blog/index.md
-  - Backlog:
-      - decisions/backlog.md
+      - System Overview: architecture/system-overview.md
+      - Data Flow: architecture/data-flow.md
+      - Dashboard Publishing: architecture/dashboard-publishing.md
+      - Athena Query Layer: architecture/athena-query-layer.md
+      - NOAA Geofence Ingestion: architecture/noaa-geofence-ingestion.md
+      - Real Geofences: architecture/real-geofences-implementation.md
+  - Data Engineering:
+      - Data Sources: data/data-sources.md
+      - Warehouse Schema: data/warehouse-schema.md
+      - Pipeline Explorer: data/pipeline-explorer.md
+      - Data Dictionary: data/data-dictionary.md
+  - Machine Learning:
+      - Model Card: ml/model-card.md
+      - Event Intelligence: ml/event-intelligence.md
+  - Operations & Security:
+      - IAM And Identity: operations/iam-and-identity.md
+      - Secrets And Environments: operations/secrets-and-environments.md
+      - Monitoring And Alarms: operations/monitoring-and-alarms.md
+      - Serverless Status And Costs: operations/serverless-status-and-costs.md
+      - Runbook: operations/runbook.md
+      - Incidents:
+          - AIS Outage: operations/incidents/2026-06-11-ais-outage.md
+  - Logs & Backlog:
+      - Learning Journal: learning-journal/index.md
+      - Blog: blog/index.md
+      - Backlog: decisions/backlog.md
+  - Planning:
+      - Implementation Plan: planning/implementation_plan.md
+      - Tasks: planning/task.md
+      - Walkthrough: planning/walkthrough.md

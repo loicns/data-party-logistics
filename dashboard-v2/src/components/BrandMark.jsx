@@ -1,7 +1,7 @@
-export default function BrandMark({ className = "h-10 w-10", alt = "Data Party Logistics" }) {
+export default function BrandMark({ className = "h-14 w-14", alt = "Data Party Logistics" }) {
   return (
     <img
-      src="/favicon.svg?v=port-logo"
+      src="/favicon.png?v=dpl-transparent-logo"
       alt={alt}
       className={`block shrink-0 object-contain ${className}`}
       draggable="false"
